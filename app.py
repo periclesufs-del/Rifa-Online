@@ -16,9 +16,20 @@ Para ajudar a tornar esse tratamento possível, estamos organizando uma rifa sol
 # Exibição dos prêmios
 st.markdown("""
 ### Prêmios:
-- 1º Prêmio: Smartphone Samsung A54
-- 2º Prêmio: Voucher de R$ 500,00 em loja parceira
-- 3º Prêmio: Caixa de som portátil JBL
+- 1º Prêmio: R$ 50,00
+- 2º Prêmio: R$ 50,00
+- 3º Prêmio: R$ 100,00
+- 4º Prêmio: R$ 100,00
+- 5º Prêmio: R$ 200,00
+- 6º Prêmio: R$ 200,00
+- 7º Prêmio: R$ 300,00
+- 8º Prêmio: R$ 500,00
+""")
+
+# Exibição do valor da rifa
+st.markdown("""
+### Valor da Rifa:
+- Cada número escolhido: R$ 5,00
 """)
 
 arquivo_csv = "rifa_participantes.csv"
@@ -92,8 +103,9 @@ if st.button("Reservar número(s)"):
         st.success(f"Números {', '.join(map(str, selecionados))} reservados para {nome}! Status: pendente.")
         st.markdown("**Chave Pix para pagamento:**")
         st.code("97984033561", language='text')
+        st.markdown("**Link para assistir o sorteio (13/12/2025 às 18h):**")
+        st.code("https://meet.google.com/fed-asyo-pdf", language='text')
         
-
 
 # Área de gestão administrativa por senha
 if st.checkbox("Acesso administrativo (organizador)"):
