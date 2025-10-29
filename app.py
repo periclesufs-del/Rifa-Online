@@ -90,29 +90,6 @@ if st.button("Reservar número(s)"):
         df = pd.concat([df, novas_linhas], ignore_index=True)
         df.to_csv(arquivo_csv, index=False)
         st.success(f"Números {', '.join(map(str, selecionados))} reservados para {nome}! Status: pendente.")
-if st.button("Reservar número(s)"):
-    if nome.strip() == "" or contato.strip() == "":
-        st.warning("Preencha todos os campos!")
-    elif not selecionados:
-        st.warning("Selecione pelo menos um número!")
-    elif any(n in ocupados for n in selecionados):
-        st.error("Um ou mais números selecionados já foram reservados.")
-    else:
-        comp_path = ""
-        if comprovante:
-            os.makedirs("comprovantes", exist_ok=True)
-            ext = os.path.splitext(comprovante.name)[1]
-            comp_filename = f"comprovantes/{'_'.join(map(str,selecionados))}_{nome.strip().replace(' ', '_')}{ext}"
-            with open(comp_filename, "wb") as f:
-                f.write(comprovante.getbuffer())
-            comp_path = comp_filename
-        novas_linhas = pd.DataFrame(
-            [[nome.strip(), contato.strip(), n, "pendente", comp_path] for n in selecionados],
-            columns=["Nome", "Contato", "Numero", "Status", "Comprovante"]
-        )
-        df = pd.concat([df, novas_linhas], ignore_index=True)
-        df.to_csv(arquivo_csv, index=False)
-        st.success(f"Números {', '.join(map(str, selecionados))} reservados para {nome}! Status: pendente.")
 
 
 # Área de gestão administrativa por senha
