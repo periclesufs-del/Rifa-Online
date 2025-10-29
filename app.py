@@ -67,7 +67,7 @@ comprovante = st.file_uploader(
     type=["pdf", "jpg", "jpeg", "png"]
 )
 
-if st.button("Reservar número(s)"):
+if st.button("Reservar número(s)", key="reservar_principal"):
     if nome.strip() == "" or contato.strip() == "":
         st.warning("Preencha todos os campos!")
     elif not selecionados:
