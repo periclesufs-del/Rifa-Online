@@ -77,31 +77,34 @@ if st.button("Reservar número"):
         df.to_csv(arquivo_csv, index=False)
         st.success(f"Pronto, {nome}! Seu número {numero_escolhido} foi reservado. Status: pendente.")
 
-# Área de gestão para organizador
-if st.checkbox("Mostrar todos os participantes"):
-    st.dataframe(df)
-    st.write("Gestão de pagamentos e reservas:")
-
-    numero_gerenciar = st.number_input(
-        "Informe o número para liberar/cancelar ou marcar como pago",
-        min_value=num_inicial, max_value=num_final, step=1
-    )
-    acao = st.selectbox("Ação", ["Liberar número (cancelar reserva)", "Marcar como pago"])
-    if st.button("Aplicar ação"):
-        idx = df[df["Numero"].astype(int) == int(numero_gerenciar)].index
-        if len(idx) == 0:
-            st.warning("Número não encontrado ou sem reserva ativa.")
-        else:
-            if acao == "Liberar número (cancelar reserva)":
-                df.loc[idx, "Status"] = "liberado"
-                st.info(f"Número {numero_gerenciar} foi liberado e está disponível novamente.")
-            elif acao == "Marcar como pago":
-                df.loc[idx, "Status"] = "pago"
-                st.success(f"Número {numero_gerenciar} foi marcado como pago.")
+# Área de gestão apenas para o administrador (protegida por senha simples)
+if st.checkbox("Acesso administrativo (organizador)"):
+    admin_senha = st.text_input("Digite a senha de administrador:", type="password")
+    if admin_senha == "adm123":  # Escolha uma senha forte!
+        st.subheader("Gestão de pagamentos e reservas")
+        st.dataframe(df)
+        numero_gerenciar = st.number_input(
+            "Informe o número para liberar/cancelar ou marcar como pago",
+            min_value=num_inicial, max_value=num_final, step=1
+        )
+        acao = st.selectbox("Ação", ["Liberar número (cancelar reserva)", "Marcar como pago"])
+        if st.button("Aplicar ação"):
+            idx = df[df["Numero"].astype(int) == int(numero_gerenciar)].index
+            if len(idx) == 0:
+                st.warning("Número não encontrado ou sem reserva ativa.")
+            else:
+                if acao == "Liberar número (cancelar reserva)":
+                    df.loc[idx, "Status"] = "liberado"
+                    st.info(f"Número {numero_gerenciar} foi liberado e está disponível novamente.")
+                elif acao == "Marcar como pago":
+                    df.loc[idx, "Status"] = "pago"
+                    st.success(f"Número {numero_gerenciar} foi marcado como pago.")
+                df.to_csv(arquivo_csv, index=False)
+        if st.button("Exportar lista (CSV)", key="export_admin"):
             df.to_csv(arquivo_csv, index=False)
+            st.success("Arquivo atualizado/exportado com sucesso.")
+    elif admin_senha != "":
+        st.error("Senha incorreta.")
 
-if st.button("Exportar lista (CSV)"):
-    df.to_csv(arquivo_csv, index=False)
-    st.success("Arquivo atualizado/exportado com sucesso.")
 
 st.info("Ao reservar seu número, confirme pagamento pelo número (97) 984033561. Envie seu comprovante para facilitar a confirmação. Após verificação, seu número será validado!")
