@@ -67,7 +67,7 @@ comprovante = st.file_uploader(
     type=["pdf", "jpg", "jpeg", "png"]
 )
 
-if st.button("Reservar número(s)", key="reservar_principal"):
+if st.button("Reservar número(s)"):
     if nome.strip() == "" or contato.strip() == "":
         st.warning("Preencha todos os campos!")
     elif not selecionados:
@@ -113,14 +113,6 @@ if st.button("Reservar número(s)"):
         df = pd.concat([df, novas_linhas], ignore_index=True)
         df.to_csv(arquivo_csv, index=False)
         st.success(f"Números {', '.join(map(str, selecionados))} reservados para {nome}! Status: pendente.")
-
-        # INSIRA AQUI:
-        st.markdown("""
-**Chave Pix para pagamento:**
-- Copie e pague no seu banco: `97984033561`
-
-[Copiar chave Pix (site externo)](https://copypix.com/?chave=97984033561)
-""")
 
 
 # Área de gestão administrativa por senha
