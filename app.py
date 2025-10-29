@@ -80,7 +80,7 @@ if st.button("Reservar número"):
 # Área de gestão apenas para o administrador (protegida por senha simples)
 if st.checkbox("Acesso administrativo (organizador)"):
     admin_senha = st.text_input("Digite a senha de administrador:", type="password")
-    if admin_senha == "adm123":  # Escolha uma senha forte!
+    if admin_senha == "142758Ufal!@#":  # Escolha uma senha forte!
         st.subheader("Gestão de pagamentos e reservas")
         st.dataframe(df)
         numero_gerenciar = st.number_input(
