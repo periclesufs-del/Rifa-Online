@@ -90,6 +90,10 @@ if st.button("Reservar número(s)"):
         df = pd.concat([df, novas_linhas], ignore_index=True)
         df.to_csv(arquivo_csv, index=False)
         st.success(f"Números {', '.join(map(str, selecionados))} reservados para {nome}! Status: pendente.")
+        st.markdown("**Chave Pix para pagamento:**")
+        st.code("97984033561", language='text')
+        st.text_input("Copie a chave Pix abaixo:", "97984033561")
+
 
 
 # Área de gestão administrativa por senha
