@@ -57,10 +57,8 @@ st.write(f"Você pode selecionar vários números.")
 
 # Seleção múltipla dos números
 selecionados = st.multiselect(
-    "Escolha os números desejados nesta faixa:",
-    options=numeros_faixa,
-    default=[],
-    disabled_options=[str(n) for n in ocupados if inicio_faixa <= n <= fim_faixa]
+    f"Escolha os números desejados nesta faixa ({inicio_faixa}–{fim_faixa}):",
+    options=numeros_disponiveis
 )
 
 nome = st.text_input("Seu nome completo")
