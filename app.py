@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-import math
 
 st.set_page_config(page_title="Rifa Solidária", layout="centered")
 
@@ -23,44 +22,30 @@ st.markdown("""
 
 arquivo_csv = "rifa_participantes.csv"
 
-# Carrega dados existentes e garante colunas
+# Carrega dados existentes e garante presença das colunas corretas
 if os.path.exists(arquivo_csv):
     df = pd.read_csv(arquivo_csv)
 else:
     df = pd.DataFrame(columns=["Nome", "Contato", "Numero", "Status", "Comprovante"])
 
+# Corrige CSV antigos sem as novas colunas
 for col in ["Status", "Comprovante"]:
     if col not in df.columns:
         df[col] = "" if col == "Comprovante" else "pendente"
 
 num_inicial = 1
 num_final = 5000
-faixa = 500  # números por página
-total_paginas = math.ceil((num_final - num_inicial + 1) / faixa)
+todos_numeros = list(range(num_inicial, num_final+1))
 
+# Bloqueia apenas números não liberados
 ocupados = df[df["Status"] != "liberado"]["Numero"].astype(int).tolist() if not df.empty else []
+disponiveis = [n for n in todos_numeros if n not in ocupados]
 
-# Escolha da página (faixa)
-pagina = st.number_input(
-    "Selecione a faixa de números",
-    min_value=1, max_value=total_paginas, step=1,
-    value=1
-)
+st.subheader("Números disponíveis")
+st.write(f"{len(disponiveis)} de {len(todos_numeros)} disponíveis")
 
-inicio_faixa = num_inicial + (pagina - 1) * faixa
-fim_faixa = min(inicio_faixa + faixa - 1, num_final)
-numeros_faixa = list(range(inicio_faixa, fim_faixa + 1))
-numeros_disponiveis = [n for n in numeros_faixa if n not in ocupados]
-
-st.subheader(f"Números disponíveis ({inicio_faixa} a {fim_faixa})")
-st.write(f"Você pode selecionar vários números.")
-
-# Seleção múltipla dos números
-selecionados = st.multiselect(
-    f"Escolha os números desejados nesta faixa ({inicio_faixa}–{fim_faixa}):",
-    options=numeros_disponiveis
-)
-
+# Interface para reserva
+numero_escolhido = st.selectbox("Escolha um número disponível:", disponiveis)
 nome = st.text_input("Seu nome completo")
 contato = st.text_input("Telefone para contato (WhatsApp)")
 comprovante = st.file_uploader(
@@ -68,34 +53,34 @@ comprovante = st.file_uploader(
     type=["pdf", "jpg", "jpeg", "png"]
 )
 
-if st.button("Reservar número(s)"):
+if st.button("Reservar número"):
     if nome.strip() == "" or contato.strip() == "":
         st.warning("Preencha todos os campos!")
-    elif not selecionados:
-        st.warning("Selecione pelo menos um número!")
-    elif any(n in ocupados for n in selecionados):
-        st.error("Um ou mais números selecionados já foram reservados.")
+    elif numero_escolhido in ocupados:
+        st.error("Número já reservado. Atualize a página e tente novamente.")
     else:
-        comp_path = ""
+        # Salva comprovante se enviado
         if comprovante:
             os.makedirs("comprovantes", exist_ok=True)
             ext = os.path.splitext(comprovante.name)[1]
-            comp_filename = f"comprovantes/{'_'.join(map(str,selecionados))}_{nome.strip().replace(' ', '_')}{ext}"
+            comp_filename = f"comprovantes/{numero_escolhido}_{nome.strip().replace(' ', '_')}{ext}"
             with open(comp_filename, "wb") as f:
                 f.write(comprovante.getbuffer())
             comp_path = comp_filename
-        novas_linhas = pd.DataFrame(
-            [[nome.strip(), contato.strip(), n, "pendente", comp_path] for n in selecionados],
+        else:
+            comp_path = ""
+        nova_linha = pd.DataFrame(
+            [[nome.strip(), contato.strip(), numero_escolhido, "pendente", comp_path]],
             columns=["Nome", "Contato", "Numero", "Status", "Comprovante"]
         )
-        df = pd.concat([df, novas_linhas], ignore_index=True)
+        df = pd.concat([df, nova_linha], ignore_index=True)
         df.to_csv(arquivo_csv, index=False)
-        st.success(f"Números {', '.join(map(str, selecionados))} reservados para {nome}! Status: pendente.")
+        st.success(f"Pronto, {nome}! Seu número {numero_escolhido} foi reservado. Status: pendente.")
 
-# Área de gestão administrativa por senha
+# Área de gestão apenas para o administrador (protegida por senha simples)
 if st.checkbox("Acesso administrativo (organizador)"):
     admin_senha = st.text_input("Digite a senha de administrador:", type="password")
-    if admin_senha == "142758Ufal!@#":
+    if admin_senha == "142758Ufal!@#":  # Escolha uma senha forte!
         st.subheader("Gestão de pagamentos e reservas")
         st.dataframe(df)
         numero_gerenciar = st.number_input(
@@ -120,5 +105,6 @@ if st.checkbox("Acesso administrativo (organizador)"):
             st.success("Arquivo atualizado/exportado com sucesso.")
     elif admin_senha != "":
         st.error("Senha incorreta.")
+
 
 st.info("Ao reservar seu número, confirme pagamento pelo número (97) 984033561. Envie seu comprovante para facilitar a confirmação. Após verificação, seu número será validado!")
