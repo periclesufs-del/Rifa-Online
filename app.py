@@ -12,7 +12,7 @@ Para ajudar a tornar esse tratamento possível, estamos organizando uma rifa sol
 💚
 """)
 
-# Adicione aqui os prêmios!
+# Exibição dos prêmios
 st.markdown("""
 ### Prêmios:
 - 1º Prêmio: Smartphone Samsung A54
@@ -22,27 +22,36 @@ st.markdown("""
 
 arquivo_csv = "rifa_participantes.csv"
 
-# Carrega dados existentes
+# Carrega dados existentes e garante presença das colunas corretas
 if os.path.exists(arquivo_csv):
     df = pd.read_csv(arquivo_csv)
 else:
     df = pd.DataFrame(columns=["Nome", "Contato", "Numero", "Status", "Comprovante"])
 
+# Corrige CSV antigos sem as novas colunas
+for col in ["Status", "Comprovante"]:
+    if col not in df.columns:
+        df[col] = "" if col == "Comprovante" else "pendente"
+
 num_inicial = 1
 num_final = 5000
 todos_numeros = list(range(num_inicial, num_final+1))
 
+# Bloqueia apenas números não liberados
 ocupados = df[df["Status"] != "liberado"]["Numero"].astype(int).tolist() if not df.empty else []
 disponiveis = [n for n in todos_numeros if n not in ocupados]
 
 st.subheader("Números disponíveis")
 st.write(f"{len(disponiveis)} de {len(todos_numeros)} disponíveis")
 
-# Interface de escolha do número
+# Interface para reserva
 numero_escolhido = st.selectbox("Escolha um número disponível:", disponiveis)
 nome = st.text_input("Seu nome completo")
 contato = st.text_input("Telefone para contato (WhatsApp)")
-comprovante = st.file_uploader("Envie seu comprovante de pagamento (opcional, PDF ou imagem)", type=["pdf", "jpg", "jpeg", "png"])
+comprovante = st.file_uploader(
+    "Envie seu comprovante de pagamento (opcional, PDF ou imagem)", 
+    type=["pdf", "jpg", "jpeg", "png"]
+)
 
 if st.button("Reservar número"):
     if nome.strip() == "" or contato.strip() == "":
@@ -50,28 +59,34 @@ if st.button("Reservar número"):
     elif numero_escolhido in ocupados:
         st.error("Número já reservado. Atualize a página e tente novamente.")
     else:
+        # Salva comprovante se enviado
         if comprovante:
-            filepath = f"comprovantes/{numero_escolhido}_{nome.strip().replace(' ', '_')}{os.path.splitext(comprovante.name)[1]}"
             os.makedirs("comprovantes", exist_ok=True)
-            with open(filepath, "wb") as f:
+            ext = os.path.splitext(comprovante.name)[1]
+            comp_filename = f"comprovantes/{numero_escolhido}_{nome.strip().replace(' ', '_')}{ext}"
+            with open(comp_filename, "wb") as f:
                 f.write(comprovante.getbuffer())
-            comp_path = filepath
+            comp_path = comp_filename
         else:
             comp_path = ""
-        nova_linha = pd.DataFrame([[nome.strip(), contato.strip(), numero_escolhido, "pendente", comp_path]],
-                                  columns=["Nome", "Contato", "Numero", "Status", "Comprovante"])
+        nova_linha = pd.DataFrame(
+            [[nome.strip(), contato.strip(), numero_escolhido, "pendente", comp_path]],
+            columns=["Nome", "Contato", "Numero", "Status", "Comprovante"]
+        )
         df = pd.concat([df, nova_linha], ignore_index=True)
         df.to_csv(arquivo_csv, index=False)
         st.success(f"Pronto, {nome}! Seu número {numero_escolhido} foi reservado. Status: pendente.")
 
-# Exibição e gerenciamento dos participantes
+# Área de gestão para organizador
 if st.checkbox("Mostrar todos os participantes"):
     st.dataframe(df)
-    st.write("Clique em um número para liberar! Marque como 'pago' para validar.")
+    st.write("Gestão de pagamentos e reservas:")
 
-    # Gerenciamento manual pelo organizador
-    numero_gerenciar = st.number_input("Digite o número para liberar/cancelar", min_value=num_inicial, max_value=num_final, step=1)
-    acao = st.selectbox("Selecione ação", ["Liberar número (cancelar reserva)", "Marcar como pago"])
+    numero_gerenciar = st.number_input(
+        "Informe o número para liberar/cancelar ou marcar como pago",
+        min_value=num_inicial, max_value=num_final, step=1
+    )
+    acao = st.selectbox("Ação", ["Liberar número (cancelar reserva)", "Marcar como pago"])
     if st.button("Aplicar ação"):
         idx = df[df["Numero"].astype(int) == int(numero_gerenciar)].index
         if len(idx) == 0:
@@ -85,7 +100,6 @@ if st.checkbox("Mostrar todos os participantes"):
                 st.success(f"Número {numero_gerenciar} foi marcado como pago.")
             df.to_csv(arquivo_csv, index=False)
 
-# Exportação dos inscritos
 if st.button("Exportar lista (CSV)"):
     df.to_csv(arquivo_csv, index=False)
     st.success("Arquivo atualizado/exportado com sucesso.")
