@@ -104,8 +104,8 @@ if st.button("Reservar número(s)"):
         df = pd.concat([df, novas_linhas], ignore_index=True)
         df.to_csv(arquivo_csv, index=False)
         st.success(f"Números {', '.join(map(str, selecionados))} reservados para {nome}! Status: pendente.")
-        st.markdown("**Chave Pix para pagamento:**")
-        st.code("97984033561", language='text')
+        st.markdown("**Chave Pix para pagamento: Iracilane Vale Alves (CAIXA)**")
+        st.code("17981539431", language='text')
         st.markdown("**Link para assistir o sorteio (13/12/2025 às 18h):**")
         st.code("https://meet.google.com/fed-asyo-pdf", language='text')
         
