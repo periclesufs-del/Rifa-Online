@@ -134,26 +134,50 @@ if st.checkbox("Acesso administrativo (organizador)"):
                         )
                     st.markdown("---")
 
-        numero_gerenciar = st.number_input(
-            "Informe o número para liberar/cancelar ou marcar como pago",
-            min_value=num_inicial, max_value=num_final, step=1
-        )
-        acao = st.selectbox("Ação", ["Liberar número (cancelar reserva)", "Marcar como pago"])
-        if st.button("Aplicar ação"):
-            idx = df[df["Numero"].astype(int) == int(numero_gerenciar)].index
-            if len(idx) == 0:
-                st.warning("Número não encontrado ou sem reserva ativa.")
-            else:
-                if acao == "Liberar número (cancelar reserva)":
-                    df.loc[idx, "Status"] = "liberado"
-                    st.info(f"Número {numero_gerenciar} foi liberado e está disponível novamente.")
-                elif acao == "Marcar como pago":
-                    df.loc[idx, "Status"] = "pago"
-                    st.success(f"Número {numero_gerenciar} foi marcado como pago.")
-                df.to_csv(arquivo_csv, index=False)
-        if st.button("Exportar lista (CSV)", key="export_admin"):
+       # ... área do admin já existente ...
+st.subheader("Comprovantes enviados (pendentes)")
+for idx, row in df.iterrows():
+    comp = row["Comprovante"]
+    if row["Status"] == "pendente" and isinstance(comp, str) and comp.strip():
+        comp_path = Path(comp)
+        if comp_path.exists():
+            st.markdown(f"**{row['Nome']}** | Número: {row['Numero']} | Status: {row['Status']}")
+            with open(comp_path, "rb") as f:
+                st.download_button(
+                    label=f"Baixar comprovante ({comp_path.name})",
+                    data=f,
+                    file_name=comp_path.name,
+                    mime="application/octet-stream"
+                )
+            st.markdown("---")
+
+# NOVO BLOCO PARA SELEÇÃO OTIMIZADA
+numeros_pendentes = df[df["Status"] == "pendente"]["Numero"].astype(int).tolist()
+if numeros_pendentes:
+    numero_gerenciar = st.selectbox(
+        "Selecione o número pendente para liberar/cancelar ou marcar como pago",
+        options=numeros_pendentes
+    )
+    acao = st.selectbox("Ação", ["Liberar número (cancelar reserva)", "Marcar como pago"])
+    if st.button("Aplicar ação"):
+        idx = df[df["Numero"].astype(int) == int(numero_gerenciar)].index
+        if len(idx) == 0:
+            st.warning("Número não encontrado ou sem reserva ativa.")
+        else:
+            if acao == "Liberar número (cancelar reserva)":
+                df.loc[idx, "Status"] = "liberado"
+                st.info(f"Número {numero_gerenciar} foi liberado e está disponível novamente.")
+            elif acao == "Marcar como pago":
+                df.loc[idx, "Status"] = "pago"
+                st.success(f"Número {numero_gerenciar} foi marcado como pago.")
             df.to_csv(arquivo_csv, index=False)
-            st.success("Arquivo atualizado/exportado com sucesso.")
+else:
+    st.info("Nenhum número pendente para gerenciar no momento.")
+
+if st.button("Exportar lista (CSV)", key="export_admin"):
+    df.to_csv(arquivo_csv, index=False)
+    st.success("Arquivo atualizado/exportado com sucesso.")
+
     elif admin_senha != "":
         st.error("Senha incorreta.")
 
