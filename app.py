@@ -117,10 +117,11 @@ if st.checkbox("Acesso administrativo (organizador)"):
         st.subheader("Gestão de pagamentos e reservas")
         st.dataframe(df)
 
-        st.subheader("Comprovantes enviados")
+        st.subheader("Comprovantes enviados (pendentes)")
         for idx, row in df.iterrows():
             comp = row["Comprovante"]
-            if isinstance(comp, str) and comp.strip():
+            # Mostra só comprovantes de reservas pendentes
+            if row["Status"] == "pendente" and isinstance(comp, str) and comp.strip():
                 comp_path = Path(comp)
                 if comp_path.exists():
                     st.markdown(f"**{row['Nome']}** | Número: {row['Numero']} | Status: {row['Status']}")
@@ -133,7 +134,6 @@ if st.checkbox("Acesso administrativo (organizador)"):
                         )
                     st.markdown("---")
 
-        # Segue o restante da área de gestão administrativa normalmente...
         numero_gerenciar = st.number_input(
             "Informe o número para liberar/cancelar ou marcar como pago",
             min_value=num_inicial, max_value=num_final, step=1
@@ -158,4 +158,10 @@ if st.checkbox("Acesso administrativo (organizador)"):
         st.error("Senha incorreta.")
 
 
-st.info("Ao reservar seu número, confirme pagamento pelo número (97) 984033561. Envie seu comprovante para facilitar a confirmação. Após verificação, seu número será validado!")
+st.markdown(
+    "<span style='color:red'><b>"
+    "Ao reservar seu número, confirme pagamento pelo número (97) 984033561. "
+    "Envie seu comprovante para facilitar a confirmação. Após verificação, seu número será validado!"
+    "</b></span>", 
+    unsafe_allow_html=True
+)
