@@ -129,16 +129,17 @@ if st.checkbox("Acesso administrativo (organizador)"):
                             label=f"Baixar comprovante ({comp_path.name})",
                             data=f,
                             file_name=comp_path.name,
-                            mime="application/octet-stream"
+                            mime="application/octet-stream",
+                            key=f"download_{comp_path.name}_{idx}"  # chave única por comprovante
                         )
                     st.markdown("---")
 
-        # Seleciona apenas números pendentes para ações
-        numeros_pendentes = df[df["Status"] == "pendentes"]["Numero"].astype(int).tolist()
-        if numeros_pendentes:
+        # Seleciona números PENDENTES ou PAGOS para gerir/liberar
+        numeros_editaveis = df[df["Status"].isin(["pendente", "pago"])]["Numero"].astype(int).tolist()
+        if numeros_editaveis:
             numero_gerenciar = st.selectbox(
-                "Selecione o número pendente para liberar/cancelar ou marcar como pago",
-                options=numeros_pendentes
+                "Selecione o número pendente/pago para liberar/cancelar ou marcar como pago",
+                options=numeros_editaveis
             )
             acao = st.selectbox("Ação", ["Liberar número (cancelar reserva)", "Marcar como pago"])
             if st.button("Aplicar ação"):
@@ -154,13 +155,14 @@ if st.checkbox("Acesso administrativo (organizador)"):
                         st.success(f"Número {numero_gerenciar} foi marcado como pago.")
                     df.to_csv(arquivo_csv, index=False)
         else:
-            st.info("Nenhum número pendente para gerenciar no momento.")
+            st.info("Nenhum número pendente ou pago para gerenciar no momento.")
 
         if st.button("Exportar lista (CSV)", key="export_admin"):
             df.to_csv(arquivo_csv, index=False)
             st.success("Arquivo atualizado/exportado com sucesso.")
     elif admin_senha != "":
         st.error("Senha incorreta.")
+
 
 
 st.markdown(
@@ -171,4 +173,3 @@ st.markdown(
     "</b></span>",
     unsafe_allow_html=True
 )
-
