@@ -116,33 +116,24 @@ if st.checkbox("Acesso administrativo (organizador)"):
     if admin_senha == "142758Ufal!@#":
         st.subheader("Gestão de pagamentos e reservas")
         st.dataframe(df)
-st.subheader("Comprovantes enviados")
-for idx, row in df.iterrows():
-    if row["Comprovante"]:
-        comp = row["Comprovante"]
-# Garante que existe e que é uma string não-vazia
-if isinstance(comp, str) and comp.strip():
-    comp_path = Path(comp)
-    if comp_path.exists():
-        st.markdown(f"**{row['Nome']}** | Número: {row['Numero']} | Status: {row['Status']}")
-        with open(comp_path, "rb") as f:
-            st.download_button(
-                label=f"Baixar comprovante ({comp_path.name})",
-                data=f,
-                file_name=comp_path.name,
-                mime="application/octet-stream"
-            )
-        st.markdown("---")
 
-            st.markdown(f"**{row['Nome']}** | Número: {row['Numero']} | Status: {row['Status']}")
-            with open(comp_path, "rb") as f:
-                st.download_button(
-                    label=f"Baixar comprovante ({comp_path.name})",
-                    data=f,
-                    file_name=comp_path.name,
-                    mime="application/octet-stream"
-                )
-            st.markdown("---")
+        st.subheader("Comprovantes enviados")
+        for idx, row in df.iterrows():
+            comp = row["Comprovante"]
+            if isinstance(comp, str) and comp.strip():
+                comp_path = Path(comp)
+                if comp_path.exists():
+                    st.markdown(f"**{row['Nome']}** | Número: {row['Numero']} | Status: {row['Status']}")
+                    with open(comp_path, "rb") as f:
+                        st.download_button(
+                            label=f"Baixar comprovante ({comp_path.name})",
+                            data=f,
+                            file_name=comp_path.name,
+                            mime="application/octet-stream"
+                        )
+                    st.markdown("---")
+
+        # Segue o restante da área de gestão administrativa normalmente...
         numero_gerenciar = st.number_input(
             "Informe o número para liberar/cancelar ou marcar como pago",
             min_value=num_inicial, max_value=num_final, step=1
@@ -165,5 +156,6 @@ if isinstance(comp, str) and comp.strip():
             st.success("Arquivo atualizado/exportado com sucesso.")
     elif admin_senha != "":
         st.error("Senha incorreta.")
+
 
 st.info("Ao reservar seu número, confirme pagamento pelo número (97) 984033561. Envie seu comprovante para facilitar a confirmação. Após verificação, seu número será validado!")
