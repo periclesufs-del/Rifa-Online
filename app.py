@@ -134,7 +134,7 @@ if st.checkbox("Acesso administrativo (organizador)"):
                     st.markdown("---")
 
         # Seleciona apenas números pendentes para ações
-        numeros_pendentes = df[df["Status"] == "pago"]["Numero"].astype(int).tolist()
+        numeros_pendentes = df[df["Status"] == "pendentes"]["Numero"].astype(int).tolist()
         if numeros_pendentes:
             numero_gerenciar = st.selectbox(
                 "Selecione o número pendente para liberar/cancelar ou marcar como pago",
@@ -164,9 +164,11 @@ if st.checkbox("Acesso administrativo (organizador)"):
 
 
 st.markdown(
-    "<span style='color:red'><b>"
-    "Ao reservar seu número, confirme pagamento pelo número (97) 984033561. "
-    "Envie seu comprovante para facilitar a confirmação. Após verificação, seu número será validado!"
-    "</b></span>", 
+    "<span style='color:blue'><b>"
+    "Ao final do dia será realizada a atualização dos números reservados. "
+    "Números reservados com pagamentos não confirmados estarão disponíveis para venda no dia seguinte. "
+    "Qualquer dúvida entre em contato com o administrador da plataforma pelo número (97) 98403 3561."
+    "</b></span>",
     unsafe_allow_html=True
 )
+
