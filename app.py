@@ -119,8 +119,21 @@ if st.checkbox("Acesso administrativo (organizador)"):
 st.subheader("Comprovantes enviados")
 for idx, row in df.iterrows():
     if row["Comprovante"]:
-        comp_path = Path(row["Comprovante"])
-        if comp_path.exists():
+        comp = row["Comprovante"]
+# Garante que existe e que é uma string não-vazia
+if isinstance(comp, str) and comp.strip():
+    comp_path = Path(comp)
+    if comp_path.exists():
+        st.markdown(f"**{row['Nome']}** | Número: {row['Numero']} | Status: {row['Status']}")
+        with open(comp_path, "rb") as f:
+            st.download_button(
+                label=f"Baixar comprovante ({comp_path.name})",
+                data=f,
+                file_name=comp_path.name,
+                mime="application/octet-stream"
+            )
+        st.markdown("---")
+
             st.markdown(f"**{row['Nome']}** | Número: {row['Numero']} | Status: {row['Status']}")
             with open(comp_path, "rb") as f:
                 st.download_button(
