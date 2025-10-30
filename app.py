@@ -134,7 +134,7 @@ if st.checkbox("Acesso administrativo (organizador)"):
                     st.markdown("---")
 
         # Seleciona apenas números pendentes para ações
-        numeros_pendentes = df[df["Status"] == "pendente"]["Numero"].astype(int).tolist()
+        numeros_pendentes = df[df["Status"] == "pago"]["Numero"].astype(int).tolist()
         if numeros_pendentes:
             numero_gerenciar = st.selectbox(
                 "Selecione o número pendente para liberar/cancelar ou marcar como pago",
