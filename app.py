@@ -52,7 +52,7 @@ st.write("Preencha seus dados e escolha quantas rifas deseja comprar.")
 nome = st.text_input("Seu nome completo")
 contato = st.text_input("Telefone para contato (WhatsApp)")
 quantidade = st.number_input(
-    "Quantos rifas você deseja comprar?",
+    "Quantas rifas você deseja comprar?",
     min_value=1,
     max_value=100,
     value=1,
