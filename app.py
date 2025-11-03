@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-from pathlib import Path
 
 st.set_page_config(page_title="Rifa Solidária", layout="centered")
 
@@ -12,7 +11,7 @@ O custo total é de R$ 106.000,00, valor que inclui honorários médicos (cirurg
 Para ajudar a tornar esse tratamento possível, estamos organizando uma rifa solidária, cuja renda contribuirá de forma significativa para alcançar essa meta. Sua participação faz toda a diferença! Cada gesto de apoio é um passo importante rumo à saúde e ao bem-estar da nossa amiga Lane.
 💚
 
-O sorteio será realizado às 18h (Horário de Manaus) do dia 13/12/2025 de forma online pelo link disponibilizado ao efetuar a compra
+O sorteio será realizado às 18h (Horário de Manaus) do dia 13/12/2025 de forma online pelo link disponibilizado ao efetuar a compra.
 """)
 
 # Exibição dos prêmios
@@ -36,107 +35,60 @@ st.markdown("""
 
 arquivo_csv = "rifa_participantes.csv"
 
-# Carrega dados existentes e garante colunas
+# Carrega dados existentes
 if os.path.exists(arquivo_csv):
     df = pd.read_csv(arquivo_csv)
 else:
-    df = pd.DataFrame(columns=["Nome", "Contato", "Status", "Comprovante"])
-
-for col in ["Status", "Comprovante"]:
-    if col not in df.columns:
-        df[col] = "" if col == "Comprovante" else "pendente"
+    df = pd.DataFrame(columns=["Nome", "Contato"])
 
 st.subheader("Cadastro de Participante")
-st.write("Preencha seus dados abaixo para participar da rifa.")
+st.write("Preencha seus dados e realize o pagamento via Pix para participar.")
 
 nome = st.text_input("Seu nome completo")
 contato = st.text_input("Telefone para contato (WhatsApp)")
-comprovante = st.file_uploader(
-    "Envie seu comprovante de pagamento (opcional, PDF ou imagem)", 
-    type=["pdf", "jpg", "jpeg", "png"]
-)
 
 if st.button("Cadastrar"):
     if nome.strip() == "" or contato.strip() == "":
         st.warning("Preencha todos os campos!")
     else:
-        comp_path = ""
-        if comprovante:
-            os.makedirs("comprovantes", exist_ok=True)
-            ext = os.path.splitext(comprovante.name)[1]
-            comp_filename = f"comprovantes/{nome.strip().replace(' ', '_')}{ext}"
-            with open(comp_filename, "wb") as f:
-                f.write(comprovante.getbuffer())
-            comp_path = comp_filename
-        
         nova_linha = pd.DataFrame(
-            [[nome.strip(), contato.strip(), "pendente", comp_path]],
-            columns=["Nome", "Contato", "Status", "Comprovante"]
+            [[nome.strip(), contato.strip()]],
+            columns=["Nome", "Contato"]
         )
         df = pd.concat([df, nova_linha], ignore_index=True)
         df.to_csv(arquivo_csv, index=False)
         
-        st.success(f"Cadastro de {nome} realizado com sucesso! Status: pendente.")
+        st.success(f"Cadastro de {nome} realizado com sucesso!")
         st.markdown("**Chave Pix para pagamento: Iracilane Vale Alves (CAIXA)**")
         st.code("17981539431", language='text')
+        st.info("Após o pagamento, você estará automaticamente concorrendo no sorteio.")
         st.markdown("**Link para assistir o sorteio (13/12/2025 às 18h):**")
         st.code("https://meet.google.com/fed-asyo-pdf", language='text')
 
-# Área de gestão administrativa por senha
+# Área de gestão administrativa por senha (apenas visualização e exportação)
 if st.checkbox("Acesso administrativo (organizador)"):
     admin_senha = st.text_input("Digite a senha de administrador:", type="password")
     if admin_senha == "142758Ufal!@#":
-        st.subheader("Gestão de participantes")
+        st.subheader("Lista de Participantes Cadastrados")
         st.dataframe(df)
-
-        st.subheader("Comprovantes enviados (pendentes)")
-        for idx, row in df.iterrows():
-            comp = row["Comprovante"]
-            if row["Status"] == "pendente" and isinstance(comp, str) and comp.strip():
-                comp_path = Path(comp)
-                if comp_path.exists():
-                    st.markdown(f"**{row['Nome']}** | Contato: {row['Contato']} | Status: {row['Status']}")
-                    with open(comp_path, "rb") as f:
-                        st.download_button(
-                            label=f"Baixar comprovante ({comp_path.name})",
-                            data=f,
-                            file_name=comp_path.name,
-                            mime="application/octet-stream",
-                            key=f"download_{comp_path.name}_{idx}"
-                        )
-                    st.markdown("---")
-
-        # Gerenciamento de status
-        st.subheader("Gerenciar Status de Participantes")
-        if not df.empty:
-            participante_gerenciar = st.selectbox(
-                "Selecione o participante",
-                options=df.index.tolist(),
-                format_func=lambda x: f"{df.loc[x, 'Nome']} - {df.loc[x, 'Contato']} ({df.loc[x, 'Status']})"
-            )
-            acao = st.selectbox("Ação", ["Marcar como pago", "Cancelar (liberar)"])
-            if st.button("Aplicar ação"):
-                if acao == "Cancelar (liberar)":
-                    df.loc[participante_gerenciar, "Status"] = "liberado"
-                    st.info(f"Participante {df.loc[participante_gerenciar, 'Nome']} foi liberado/cancelado.")
-                elif acao == "Marcar como pago":
-                    df.loc[participante_gerenciar, "Status"] = "pago"
-                    st.success(f"Participante {df.loc[participante_gerenciar, 'Nome']} foi marcado como pago.")
-                df.to_csv(arquivo_csv, index=False)
-        else:
-            st.info("Nenhum participante cadastrado ainda.")
-
+        
         if st.button("Exportar lista (CSV)", key="export_admin"):
             df.to_csv(arquivo_csv, index=False)
-            st.success("Arquivo atualizado/exportado com sucesso.")
+            st.success("Arquivo exportado com sucesso!")
+            st.download_button(
+                label="Baixar CSV",
+                data=df.to_csv(index=False).encode('utf-8'),
+                file_name='rifa_participantes.csv',
+                mime='text/csv',
+            )
     elif admin_senha != "":
         st.error("Senha incorreta.")
 
 st.markdown(
     "<span style='color:blue'><b>"
-    "Ao final do dia será realizada a atualização dos cadastros. "
-    "Cadastros com pagamentos não confirmados serão cancelados. "
-    "Qualquer dúvida entre em contato com o administrador da plataforma pelo número (97) 98403 3561."
+    "A participação será confirmada através do extrato bancário Pix. "
+    "Certifique-se de realizar o pagamento com o mesmo nome cadastrado. "
+    "Qualquer dúvida entre em contato pelo número (97) 98403 3561."
     "</b></span>",
     unsafe_allow_html=True
 )
