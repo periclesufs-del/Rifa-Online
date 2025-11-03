@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import random
+import os  # ← ADICIONE ESTA LINHA
 from datetime import datetime
 import time
 
