@@ -30,7 +30,7 @@ st.markdown("""
 # Exibição do valor da rifa
 st.markdown("""
 ### Valor da Rifa:
-- Cada número custa: R$ 5,00
+- Cada rifa custa: R$ 5,00
 """)
 
 arquivo_csv = "rifa_participantes.csv"
@@ -47,12 +47,12 @@ for col in ["Quantidade", "Valor Total"]:
         df[col] = 0
 
 st.subheader("Cadastro de Participante")
-st.write("Preencha seus dados e escolha quantos números deseja comprar.")
+st.write("Preencha seus dados e escolha quantas rifas deseja comprar.")
 
 nome = st.text_input("Seu nome completo")
 contato = st.text_input("Telefone para contato (WhatsApp)")
 quantidade = st.number_input(
-    "Quantos números você deseja comprar?",
+    "Quantos rifas você deseja comprar?",
     min_value=1,
     max_value=100,
     value=1,
@@ -81,7 +81,7 @@ if st.button("Cadastrar"):
         st.markdown("**Chave Pix para pagamento: Iracilane Vale Alves (CAIXA)**")
         st.code("17981539431", language='text')
         st.markdown(f"**Valor a pagar via Pix: R$ {valor_total:.2f}**")
-        st.info("Após o pagamento, você estará automaticamente concorrendo no sorteio.")
+        st.info("Após o pagamento confirmado no extrato da conta recebedora, você estará automaticamente concorrendo no sorteio.")
         st.markdown("**Link para assistir o sorteio (13/12/2025 às 18h):**")
         st.code("https://meet.google.com/fed-asyo-pdf", language='text')
 
