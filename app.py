@@ -77,7 +77,7 @@ if st.button("Cadastrar"):
         df.to_csv(arquivo_csv, index=False)
         
         st.success(f"Cadastro de {nome} realizado com sucesso!")
-        st.success(f"Você está concorrendo com **{quantidade} número(s)**!")
+        st.success(f"Você está concorrendo com **{quantidade} rifa(s)**!")
         st.markdown("**Chave Pix para pagamento: Iracilane Vale Alves (CAIXA)**")
         st.code("17981539431", language='text')
         st.markdown(f"**Valor a pagar via Pix: R$ {valor_total:.2f}**")
