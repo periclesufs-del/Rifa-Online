@@ -195,11 +195,15 @@ def send_email(to_email, subject, plain_body, html_body, attachments=None, cc=No
 class PDFWithHeader(FPDF):
     def header(self):
         if HEADER_IMAGE_PATH.exists():
-            self.image(str(HEADER_IMAGE_PATH), x=10, y=8, w=190)
-            self.ln(30)
-        else:
-            self.set_font("Helvetica", "B", 12)
-            self.cell(0, 10, "PPGCA/UFAM", new_x="LMARGIN", new_y="NEXT")
+            try:
+                self.image(str(HEADER_IMAGE_PATH), x=10, y=8, w=190)
+                self.ln(30)
+                return
+            except Exception:
+                pass
+        self.set_font("Helvetica", "B", 12)
+        self.multi_cell(0, 7, "UNIVERSIDADE FEDERAL DO AMAZONAS - UFAM\nPROGRAMA DE POS-GRADUACAO EM CIENCIAS AMBIENTAIS")
+        self.ln(3)
 
 
 def _safe_text(value):
@@ -292,7 +296,7 @@ def send_approval_email(to_email, orientador_nome, aluno_nome, submission_id, ti
     return success, approval_link if success else result
 
 
-def send_student_submission_email(to_email, aluno_nome, submission_id, tipo, orientador_nome, attachments=None):
+def send_student_submission_email(to_email, aluno_nome, submission_id, tipo, orientador_nome, attachments=None, cc=None):
     subject = f"PPGCA/UFAM - Confirmação de submissão de {tipo}"
     plain_body = f"Prezado(a) {aluno_nome},\n\nSua submissão referente a {tipo} foi registrada e encaminhada ao(à) orientador(a) {orientador_nome}.\n\nProtocolo: {submission_id}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
     html_body = f"<html><body><p>Prezado(a) <strong>{aluno_nome}</strong>,</p><p>Sua submissão referente a <strong>{tipo}</strong> foi registrada e encaminhada ao(à) orientador(a) <strong>{orientador_nome}</strong>.</p><p><strong>Protocolo:</strong> {submission_id}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
@@ -304,7 +308,7 @@ def send_student_decision_email(to_email, aluno_nome, submission_id, tipo, parec
     obs_text = observacoes if observacoes else "Não foram registradas observações adicionais."
     plain_body = f"Prezado(a) {aluno_nome},\n\nO(A) orientador(a) registrou a seguinte manifestação sobre o documento referente a {tipo}: {parecer}.\n\nProtocolo: {submission_id}\nObservações: {obs_text}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
     html_body = f"<html><body><p>Prezado(a) <strong>{aluno_nome}</strong>,</p><p>O(A) orientador(a) registrou a seguinte manifestação sobre o documento referente a <strong>{tipo}</strong>: <strong>{parecer}</strong>.</p><p><strong>Protocolo:</strong> {submission_id}</p><p><strong>Observações:</strong> {obs_text}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
-    return send_email(to_email, subject, plain_body, html_body, attachments=attachments)
+    return send_email(to_email, subject, plain_body, html_body, attachments=attachments, cc=cc)
 
 
 init_db()
