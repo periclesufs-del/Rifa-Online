@@ -13,7 +13,7 @@ import streamlit as st
 st.set_page_config(page_title="PPGCA/UFAM · Fluxo Discente", layout="wide")
 
 DB_PATH = Path(__file__).parent / "ppgca_fluxo.db"
-BASE_URL_HINT = "https://seu-app.streamlit.app/"
+BASE_URL_HINT = "https://rifa-online-2wluyopwprcysjzdp7zomy.streamlit.app/"
 
 st.markdown(
     """
