@@ -6,8 +6,11 @@ from pathlib import Path
 from urllib.parse import urlencode
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from io import BytesIO
 
 import pandas as pd
+from fpdf import FPDF
 import streamlit as st
 
 st.set_page_config(page_title="PPGCA/UFAM · Fluxo Discente", layout="wide")
@@ -149,16 +152,27 @@ def get_email_config():
     return st.secrets["email"] if "email" in st.secrets else None
 
 
-def send_email(to_email, subject, plain_body, html_body):
+def send_email(to_email, subject, plain_body, html_body, attachments=None):
     email_cfg = get_email_config()
     if not email_cfg:
         return False, "Configuração de e-mail não encontrada em st.secrets."
-    msg = MIMEMultipart("alternative")
+
+    msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
     msg["From"] = email_cfg["sender_email"]
     msg["To"] = to_email
-    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(plain_body, "plain", "utf-8"))
+    alt.attach(MIMEText(html_body, "html", "utf-8"))
+    msg.attach(alt)
+
+    attachments = attachments or []
+    for fname, fbytes in attachments:
+        part = MIMEApplication(fbytes, _subtype="pdf")
+        part.add_header("Content-Disposition", "attachment", filename=fname)
+        msg.attach(part)
+
     try:
         if int(email_cfg["port"]) == 465:
             with smtplib.SMTP_SSL(email_cfg["host"], int(email_cfg["port"])) as server:
@@ -174,6 +188,121 @@ def send_email(to_email, subject, plain_body, html_body):
         return False, str(e)
 
 
+def gerar_pdf_plano(registro, incluir_parecer=False):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "PPGCA/UFAM - Plano semestral", ln=True)
+
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, f"Protocolo: {registro['id']}")
+    pdf.multi_cell(0, 6, f"Discente: {registro['aluno_nome']}")
+    pdf.multi_cell(0, 6, f"Orientador(a): {registro['orientador_nome']}")
+    pdf.multi_cell(0, 6, f"E-mail do discente: {registro['aluno_email']}")
+    pdf.multi_cell(0, 6, f"E-mail do orientador(a): {registro['orientador_email']}")
+    pdf.multi_cell(0, 6, f"Semestre: {registro['semestre']}")
+    pdf.multi_cell(0, 6, f"Linha de pesquisa: {registro['linha_pesquisa']}")
+    pdf.multi_cell(0, 6, f"Fase do curso: {registro['fase_curso']}")
+    pdf.multi_cell(0, 6, f"Situação de bolsa: {registro['bolsa']}")
+
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Metas acadêmicas previstas", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, registro['metas_previstas'] or "")
+
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Produtos acadêmicos previstos", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, registro['produtos_previstos'] or "")
+
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Dificuldades / necessidades de apoio", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, registro['dificuldades'] or "")
+
+    if incluir_parecer:
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.cell(0, 10, "Parecer do(a) orientador(a)", ln=True)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 6, f"Parecer: {registro['parecer_orientador'] or 'Não informado'}")
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 8, "Observações", ln=True)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 6, registro['observacoes_orientador'] or "")
+
+    buffer = BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    return buffer.read()
+
+
+def gerar_pdf_relatorio(registro, incluir_parecer=False):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "PPGCA/UFAM - Relatório semestral", ln=True)
+
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, f"Protocolo: {registro['id']}")
+    pdf.multi_cell(0, 6, f"Discente: {registro['aluno_nome']}")
+    pdf.multi_cell(0, 6, f"Orientador(a): {registro['orientador_nome']}")
+    pdf.multi_cell(0, 6, f"E-mail do discente: {registro['aluno_email']}")
+    pdf.multi_cell(0, 6, f"E-mail do orientador(a): {registro['orientador_email']}")
+    pdf.multi_cell(0, 6, f"Semestre: {registro['semestre']}")
+
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Síntese do que havia sido planejado", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, registro['resumo_previsto'] or "")
+
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Metas cumpridas e produção realizada", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, registro['metas_cumpridas'] or "")
+
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Pendências, atrasos ou dificuldades", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, registro['pendencias'] or "")
+
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Encaminhamentos para o semestre seguinte", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 6, registro['proximos_passos'] or "")
+
+    if incluir_parecer:
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.cell(0, 10, "Parecer do(a) orientador(a)", ln=True)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 6, f"Parecer: {registro['parecer_orientador'] or 'Não informado'}")
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 8, "Observações", ln=True)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 6, registro['observacoes_orientador'] or "")
+
+    buffer = BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    return buffer.read()
+
+
 def send_approval_email(to_email, orientador_nome, aluno_nome, submission_id, tipo):
     approval_link = build_link(submission_id, "orientador")
     subject = f"PPGCA/UFAM - Solicitação de chancela de {tipo}"
@@ -183,19 +312,19 @@ def send_approval_email(to_email, orientador_nome, aluno_nome, submission_id, ti
     return success, approval_link if success else result
 
 
-def send_student_submission_email(to_email, aluno_nome, submission_id, tipo, orientador_nome):
+def send_student_submission_email(to_email, aluno_nome, submission_id, tipo, orientador_nome, attachments=None):
     subject = f"PPGCA/UFAM - Confirmação de submissão de {tipo}"
     plain_body = f"Prezado(a) {aluno_nome},\n\nSua submissão referente a {tipo} foi registrada e encaminhada ao(à) orientador(a) {orientador_nome}.\n\nProtocolo: {submission_id}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
     html_body = f"<html><body><p>Prezado(a) <strong>{aluno_nome}</strong>,</p><p>Sua submissão referente a <strong>{tipo}</strong> foi registrada e encaminhada ao(à) orientador(a) <strong>{orientador_nome}</strong>.</p><p><strong>Protocolo:</strong> {submission_id}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
-    return send_email(to_email, subject, plain_body, html_body)
+    return send_email(to_email, subject, plain_body, html_body, attachments=attachments)
 
 
-def send_student_decision_email(to_email, aluno_nome, submission_id, tipo, parecer, observacoes):
+def send_student_decision_email(to_email, aluno_nome, submission_id, tipo, parecer, observacoes, attachments=None):
     subject = f"PPGCA/UFAM - Resultado da chancela de {tipo}"
     obs_text = observacoes if observacoes else "Não foram registradas observações adicionais."
     plain_body = f"Prezado(a) {aluno_nome},\n\nO(A) orientador(a) registrou a seguinte manifestação sobre o documento referente a {tipo}: {parecer}.\n\nProtocolo: {submission_id}\nObservações: {obs_text}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
     html_body = f"<html><body><p>Prezado(a) <strong>{aluno_nome}</strong>,</p><p>O(A) orientador(a) registrou a seguinte manifestação sobre o documento referente a <strong>{tipo}</strong>: <strong>{parecer}</strong>.</p><p><strong>Protocolo:</strong> {submission_id}</p><p><strong>Observações:</strong> {obs_text}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
-    return send_email(to_email, subject, plain_body, html_body)
+    return send_email(to_email, subject, plain_body, html_body, attachments=attachments)
 
 
 init_db()
@@ -226,6 +355,42 @@ if view == "orientador" and submission_id:
         st.markdown(f"**Protocolo:** `{registro['id']}`")
         st.markdown(f"**Tipo de documento:** {registro['tipo'].replace('_', ' ').title()}")
         st.markdown(f"**Situação atual:** {status_badge(registro['status'])}", unsafe_allow_html=True)
+
+        st.markdown("### Dados do discente")
+        st.markdown(f"**Discente:** {registro['aluno_nome']}")
+        st.markdown(f"**E-mail do discente:** {registro['aluno_email']}")
+        st.markdown(f"**Orientador(a):** {registro['orientador_nome']}")
+        st.markdown(f"**E-mail do orientador(a):** {registro['orientador_email']}")
+        st.markdown(f"**Semestre:** {registro['semestre']}")
+
+        if registro["tipo"] == "plano":
+            st.markdown("### Informações acadêmicas")
+            st.markdown(f"**Linha de pesquisa:** {registro['linha_pesquisa']}")
+            st.markdown(f"**Fase do curso:** {registro['fase_curso']}")
+            st.markdown(f"**Situação de bolsa:** {registro['bolsa']}")
+
+            st.markdown("### Metas acadêmicas previstas")
+            st.write(registro['metas_previstas'])
+
+            st.markdown("### Produtos acadêmicos previstos")
+            st.write(registro['produtos_previstos'])
+
+            st.markdown("### Dificuldades previstas / necessidades de apoio")
+            st.write(registro['dificuldades'])
+
+        elif registro["tipo"] == "relatorio":
+            st.markdown("### Síntese do que havia sido planejado")
+            st.write(registro['resumo_previsto'])
+
+            st.markdown("### Metas cumpridas e produção realizada")
+            st.write(registro['metas_cumpridas'])
+
+            st.markdown("### Pendências, atrasos ou dificuldades")
+            st.write(registro['pendencias'])
+
+            st.markdown("### Encaminhamentos para o semestre seguinte")
+            st.write(registro['proximos_passos'])
+
         st.markdown("### Registro da chancela")
         with st.form("approval_form"):
             parecer = st.selectbox("Manifestação do orientador", ["Homologado", "Homologado com ressalvas", "Devolver para ajustes"])
@@ -234,12 +399,22 @@ if view == "orientador" and submission_id:
             if ok:
                 update_approval(registro['id'], parecer, obs)
                 st.success("Manifestação registrada com sucesso.")
+
+                registro_atualizado = get_submission(registro['id'])
+                if registro_atualizado['tipo'] == 'plano':
+                    pdf_bytes = gerar_pdf_plano(registro_atualizado, incluir_parecer=True)
+                    fname = f"plano_{registro_atualizado['id']}_com_parecer.pdf"
+                else:
+                    pdf_bytes = gerar_pdf_relatorio(registro_atualizado, incluir_parecer=True)
+                    fname = f"relatorio_{registro_atualizado['id']}_com_parecer.pdf"
+
                 if registro['aluno_email']:
                     sent_student, student_msg = send_student_decision_email(
-                        registro['aluno_email'], registro['aluno_nome'] or 'Discente', registro['id'], registro['tipo'], parecer, obs
+                        registro['aluno_email'], registro['aluno_nome'] or 'Discente', registro['id'], registro['tipo'], parecer, obs,
+                        attachments=[(fname, pdf_bytes)]
                     )
                     if sent_student:
-                        st.info("O discente foi notificado por e-mail sobre o resultado da chancela.")
+                        st.info("O discente foi notificado por e-mail sobre o resultado da chancela (PDF em anexo).")
                     else:
                         st.warning(f"A manifestação foi registrada, mas o e-mail ao discente não foi enviado: {student_msg}")
 else:
@@ -271,6 +446,11 @@ else:
                     "metas_previstas": metas, "produtos_previstos": produtos, "dificuldades": dificuldades
                 })
                 st.success("Plano submetido com sucesso.")
+
+                registro = get_submission(sid)
+                pdf_bytes = gerar_pdf_plano(registro, incluir_parecer=False)
+                fname = f"plano_{sid}.pdf"
+
                 success, result = send_approval_email(orientador_email, orientador_nome, aluno_nome, sid, "plano semestral")
                 if success:
                     st.success("Mensagem institucional enviada ao orientador para chancela.")
@@ -279,10 +459,14 @@ else:
                     st.warning("Não foi possível enviar automaticamente a mensagem ao orientador.")
                     st.code(build_link(sid, "orientador"), language="text")
                     st.caption(f"Detalhe técnico: {result}")
+
                 if aluno_email:
-                    sent_student, student_msg = send_student_submission_email(aluno_email, aluno_nome, sid, "plano semestral", orientador_nome)
+                    sent_student, student_msg = send_student_submission_email(
+                        aluno_email, aluno_nome, sid, "plano semestral", orientador_nome,
+                        attachments=[(fname, pdf_bytes)]
+                    )
                     if sent_student:
-                        st.info("O discente recebeu confirmação de submissão por e-mail.")
+                        st.info("O discente recebeu confirmação de submissão por e-mail (PDF em anexo).")
                     else:
                         st.warning(f"O plano foi registrado, mas o e-mail ao discente não foi enviado: {student_msg}")
     with tab2:
@@ -310,6 +494,11 @@ else:
                     "proximos_passos": proximos, "resumo_previsto": resumo_previsto
                 })
                 st.success("Relatório submetido com sucesso.")
+
+                registro = get_submission(sid)
+                pdf_bytes = gerar_pdf_relatorio(registro, incluir_parecer=False)
+                fname = f"relatorio_{sid}.pdf"
+
                 success, result = send_approval_email(orientador_email, orientador_nome, aluno_nome, sid, "relatório semestral")
                 if success:
                     st.success("Mensagem institucional enviada ao orientador para chancela.")
@@ -318,10 +507,14 @@ else:
                     st.warning("Não foi possível enviar automaticamente a mensagem ao orientador.")
                     st.code(build_link(sid, "orientador"), language="text")
                     st.caption(f"Detalhe técnico: {result}")
+
                 if aluno_email:
-                    sent_student, student_msg = send_student_submission_email(aluno_email, aluno_nome, sid, "relatório semestral", orientador_nome)
+                    sent_student, student_msg = send_student_submission_email(
+                        aluno_email, aluno_nome, sid, "relatório semestral", orientador_nome,
+                        attachments=[(fname, pdf_bytes)]
+                    )
                     if sent_student:
-                        st.info("O discente recebeu confirmação de submissão por e-mail.")
+                        st.info("O discente recebeu confirmação de submissão por e-mail (PDF em anexo).")
                     else:
                         st.warning(f"O relatório foi registrado, mas o e-mail ao discente não foi enviado: {student_msg}")
     with tab3:
