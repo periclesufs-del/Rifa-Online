@@ -1,240 +1,267 @@
-import streamlit as st
-import pandas as pd
-import random
-import os
+import sqlite3
+import uuid
+import smtplib
 from datetime import datetime
-import time
+from pathlib import Path
+from urllib.parse import urlencode
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-st.set_page_config(page_title="Rifa Solidária", layout="centered")
+import pandas as pd
+import streamlit as st
 
-# Menu de navegação
-pagina = st.sidebar.radio("Navegação", ["Cadastro de Participantes", "Sorteio ao Vivo"])
+st.set_page_config(page_title="PPGCA/UFAM · Fluxo Discente", layout="wide")
 
-if pagina == "Cadastro de Participantes":
-    st.title("Rifa Solidária")
+DB_PATH = Path(__file__).parent / "ppgca_fluxo.db"
+BASE_URL_HINT = "https://seu-app.streamlit.app/"
 
-    st.write("""
-    Olá, pessoal! Familiares e amigos estão unidos em uma corrente de solidariedade pela saúde da nossa querida amiga Enfermeira Lane. Ela precisa com urgência realizar uma cirurgia de correção de fístula liquórica na coluna torácica, um procedimento essencial para sua recuperação e qualidade de vida.
+st.markdown(
+    """
+    <style>
+    .stApp { background: linear-gradient(180deg, #f7f6f2 0%, #fbfbf8 100%); }
+    .ufam-banner { background: linear-gradient(120deg, #004b2d 0%, #0a6b46 50%, #014f86 100%); color: white; padding: 1.2rem 1.4rem; border-radius: 18px; margin-bottom: 1rem; box-shadow: 0 10px 28px rgba(0,0,0,.12); }
+    .ufam-grid { display: grid; grid-template-columns: 88px 1fr; gap: 1rem; align-items: center; }
+    .ufam-mark { width: 88px; height: 88px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ffffff 0 10%, #f5d04c 11% 18%, #ffffff 19% 22%, #c2272d 23% 27%, #ffffff 28% 31%, #2f7d32 32% 38%, #ffffff 39% 42%, #0d5ea8 43% 49%, #ffffff 50% 53%, #004b2d 54% 60%, #ffffff 61% 100%); border: 4px solid rgba(255,255,255,.24); }
+    .ufam-title { font-size: 2rem; font-weight: 700; margin-bottom: .25rem; }
+    .ufam-subtitle { font-size: 1rem; opacity: .96; }
+    .metric-card { border: 1px solid #d7d9d6; border-radius: 18px; padding: 1rem 1.1rem; background: #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,.04); }
+    .small-note { color: #5e6762; font-size: .93rem; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-    O custo total é de R$ 106.000,00, valor que inclui honorários médicos (cirurgião, anestesista, neuroestimulação e demais custos hospitalares).
+def get_conn():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    Para ajudar a tornar esse tratamento possível, estamos organizando uma rifa solidária, cuja renda contribuirá de forma significativa para alcançar essa meta. Sua participação faz toda a diferença! Cada gesto de apoio é um passo importante rumo à saúde e ao bem-estar da nossa amiga Lane.
-
-    O sorteio será realizado às 18h (Horário de Manaus) do dia 13/12/2025 de forma online pelo link disponibilizado ao efetuar a compra.
-    """)
-
-    # Exibição dos prêmios
-    st.markdown("""
-    ### Prêmios:
-    - 1º Prêmio: R$ 50,00
-    - 2º Prêmio: R$ 50,00
-    - 3º Prêmio: R$ 100,00
-    - 4º Prêmio: R$ 100,00
-    - 5º Prêmio: R$ 200,00
-    - 6º Prêmio: R$ 200,00
-    - 7º Prêmio: R$ 300,00
-    - 8º Prêmio: R$ 500,00
-    """)
-
-    # Exibição do valor da rifa
-    st.markdown("""
-    ### Valor da Rifa:
-    - Cada rifa custa: R$ 5,00
-    """)
-
-    arquivo_csv = "rifa_participantes.csv"
-
-    # Carrega dados existentes
-    if os.path.exists(arquivo_csv):
-        df = pd.read_csv(arquivo_csv)
-    else:
-        df = pd.DataFrame(columns=["Nome", "Contato", "Quantidade", "Valor Total"])
-
-    # Garante que as colunas existam
-    for col in ["Quantidade", "Valor Total"]:
-        if col not in df.columns:
-            df[col] = 0
-
-    st.subheader("Cadastro de Participante")
-    st.write("Preencha seus dados e escolha quantas rifas deseja comprar.")
-
-    nome = st.text_input("Seu nome completo")
-    contato = st.text_input("Telefone para contato (WhatsApp)")
-    quantidade = st.number_input(
-        "Quantas rifas você deseja comprar?",
-        min_value=1,
-        max_value=100,
-        value=1,
-        step=1,
-    )
-
-    # Calcula valor total
-    valor_unitario = 5.00
-    valor_total = quantidade * valor_unitario
-    st.info(f"Valor total a pagar: **R$ {valor_total:.2f}**")
-
-    if st.button("Cadastrar"):
-        if nome.strip() == "" or contato.strip() == "":
-            st.warning("Preencha todos os campos!")
-        else:
-            nova_linha = pd.DataFrame(
-                [[nome.strip(), contato.strip(), quantidade, valor_total]],
-                columns=["Nome", "Contato", "Quantidade", "Valor Total"],
-            )
-            df = pd.concat([df, nova_linha], ignore_index=True)
-            df.to_csv(arquivo_csv, index=False)
-
-            st.success(f"Cadastro de {nome} realizado com sucesso!")
-            st.success(f"Você está concorrendo com **{quantidade} rifa(s)**!")
-
-            st.markdown("**Chave Pix para pagamento: Iracilane Vale Alves (CAIXA)**")
-            st.code("17981539431", language="text")
-            st.markdown(f"**Valor a pagar via Pix: R$ {valor_total:.2f}**")
-            st.info(
-                "Após o pagamento, que será confirmado no extrato da conta recebedora, "
-                "você estará automaticamente concorrendo no sorteio."
-            )
-            st.markdown("**Link para assistir o sorteio (13/12/2025 às 18h):**")
-            st.code("https://meet.google.com/fed-asyo-pdf", language="text")
-
-    # Área de gestão administrativa por senha
-    if st.checkbox("Acesso administrativo (organizador)"):
-        admin_senha = st.text_input("Digite a senha de administrador:", type="password")
-
-        if admin_senha == "142758Ufal!@#":
-            st.subheader("Lista de Participantes Cadastrados")
-            st.dataframe(df)
-
-            # Estatísticas rápidas
-            if not df.empty:
-                total_participantes = len(df)
-                total_numeros = df["Quantidade"].sum()
-                total_arrecadado = df["Valor Total"].sum()
-
-                st.metric("Total de Participantes", total_participantes)
-                st.metric("Total de Números Vendidos", int(total_numeros))
-                st.metric("Total Arrecadado (estimado)", f"R$ {total_arrecadado:.2f}")
-
-            if st.button("Exportar lista (CSV)", key="export_admin"):
-                df.to_csv(arquivo_csv, index=False)
-                st.success("Arquivo exportado com sucesso!")
-                st.download_button(
-                    label="Baixar CSV",
-                    data=df.to_csv(index=False).encode("utf-8"),
-                    file_name="rifa_participantes.csv",
-                    mime="text/csv",
-                )
-        elif admin_senha != "":
-            st.error("Senha incorreta.")
-
-    st.markdown(
-        """
-        A participação será confirmada através do extrato bancário Pix. 
-        Certifique-se de realizar o pagamento com o mesmo nome cadastrado e o valor correto. 
-        Qualquer dúvida entre em contato pelo número (97) 98403 3561.
-        """,
-        unsafe_allow_html=True,
-    )
-
-elif pagina == "Sorteio ao Vivo":
-    st.title("🎉 SORTEIO AO VIVO - RIFA SOLIDÁRIA")
-    st.markdown("### Enfermeira Lane")
-
-    senha_sorteio = st.text_input("Senha do organizador para iniciar sorteio:", type="password")
-
-    if senha_sorteio == "142758Ufal!@#":
-        st.success("✓ Acesso autorizado!")
-
-        uploaded_file = st.file_uploader(
-            "Envie o arquivo de participantes aptos (.xlsx)", type=["xlsx"]
+def init_db():
+    conn = get_conn()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS submissions (
+            id TEXT PRIMARY KEY,
+            tipo TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            status TEXT NOT NULL,
+            aluno_nome TEXT,
+            aluno_email TEXT,
+            orientador_nome TEXT,
+            orientador_email TEXT,
+            linha_pesquisa TEXT,
+            semestre TEXT,
+            fase_curso TEXT,
+            bolsa TEXT,
+            metas_previstas TEXT,
+            produtos_previstos TEXT,
+            dificuldades TEXT,
+            parecer_orientador TEXT,
+            observacoes_orientador TEXT,
+            metas_cumpridas TEXT,
+            pendencias TEXT,
+            proximos_passos TEXT,
+            resumo_previsto TEXT
         )
+    """)
+    conn.commit()
+    conn.close()
 
-        if uploaded_file is not None:
-            df_aptos = pd.read_excel(uploaded_file)
-            st.success(f"✓ Arquivo carregado! Total de linhas: {len(df_aptos)}")
+def save_submission(data):
+    conn = get_conn()
+    now = datetime.now().isoformat(timespec="seconds")
+    conn.execute("""
+        INSERT INTO submissions (
+            id, tipo, created_at, updated_at, status, aluno_nome, aluno_email,
+            orientador_nome, orientador_email, linha_pesquisa, semestre,
+            fase_curso, bolsa, metas_previstas, produtos_previstos, dificuldades,
+            parecer_orientador, observacoes_orientador, metas_cumpridas,
+            pendencias, proximos_passos, resumo_previsto
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        data["id"], data["tipo"], now, now, data["status"], data.get("aluno_nome"), data.get("aluno_email"),
+        data.get("orientador_nome"), data.get("orientador_email"), data.get("linha_pesquisa"), data.get("semestre"),
+        data.get("fase_curso"), data.get("bolsa"), data.get("metas_previstas"), data.get("produtos_previstos"), data.get("dificuldades"),
+        data.get("parecer_orientador"), data.get("observacoes_orientador"), data.get("metas_cumpridas"),
+        data.get("pendencias"), data.get("proximos_passos"), data.get("resumo_previsto")
+    ))
+    conn.commit()
+    conn.close()
 
-            if "Nome" not in df_aptos.columns:
-                st.error("⚠️ O arquivo deve ter uma coluna chamada 'Nome'")
-            else:
-                # Lista completa de entradas (uma linha = uma rifa)
-                participantes = df_aptos["Nome"].dropna().tolist()
+def update_approval(submission_id, parecer, observacoes):
+    conn = get_conn()
+    now = datetime.now().isoformat(timespec="seconds")
+    status_map = {"Homologado": "homologado", "Homologado com ressalvas": "homologado_com_ressalvas", "Devolver para ajustes": "devolvido_para_ajustes"}
+    conn.execute("UPDATE submissions SET parecer_orientador = ?, observacoes_orientador = ?, status = ?, updated_at = ? WHERE id = ?", (parecer, observacoes, status_map.get(parecer, "pendente_orientador"), now, submission_id))
+    conn.commit()
+    conn.close()
 
-                # Contagem de rifas por pessoa (para transparência)
-                contagem_rifas = df_aptos["Nome"].value_counts().to_dict()
+def get_submission(submission_id):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM submissions WHERE id = ?", (submission_id,)).fetchone()
+    conn.close()
+    return row
 
-                st.info(f"📋 Entradas válidas (rifas): {len(participantes)}")
-                st.info(f"👥 Pessoas únicas: {len(contagem_rifas)}")
+def get_all_submissions():
+    conn = get_conn()
+    df = pd.read_sql_query("SELECT * FROM submissions ORDER BY created_at DESC", conn)
+    conn.close()
+    return df
 
-                premios = [
-                    ("1º Prêmio", "R$ 50,00"),
-                    ("2º Prêmio", "R$ 50,00"),
-                    ("3º Prêmio", "R$ 100,00"),
-                    ("4º Prêmio", "R$ 100,00"),
-                    ("5º Prêmio", "R$ 200,00"),
-                    ("6º Prêmio", "R$ 200,00"),
-                    ("7º Prêmio", "R$ 300,00"),
-                    ("8º Prêmio", "R$ 500,00"),
-                ]
+def make_id(prefix):
+    return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
-                st.markdown("---")
-                st.subheader("🎁 Iniciar Sorteio")
+def build_link(submission_id, role):
+    params = urlencode({"view": role, "id": submission_id})
+    return f"{BASE_URL_HINT}?{params}"
 
-                if st.button("🚀 SORTEAR TODOS OS PRÊMIOS", type="primary"):
-                    entradas = participantes.copy()
-                    random.shuffle(entradas)
+def status_badge(status):
+    colors = {"pendente_orientador": ("#8a5300", "#fff4df"), "homologado": ("#1e6a33", "#eaf7ee"), "homologado_com_ressalvas": ("#7a5a00", "#fff6d8"), "devolvido_para_ajustes": ("#8f1f44", "#fdebf2")}
+    fg, bg = colors.get(status, ("#444", "#f1f1f1"))
+    return f"<span style='padding:.35rem .6rem;border-radius:999px;background:{bg};color:{fg};font-size:.85rem;font-weight:600'>{status.replace('_',' ')}</span>"
 
-                    resultados = []
+def get_email_config():
+    return st.secrets["email"] if "email" in st.secrets else None
 
-                    for nome_premio, valor in premios:
-                        if not entradas:
-                            st.warning("Não há mais rifas para sortear.")
-                            break
-
-                        ganhador = random.choice(entradas)
-                        qtd_rifas_ganhador = contagem_rifas.get(ganhador, 1)
-
-                        resultados.append(
-                            (nome_premio, valor, ganhador, qtd_rifas_ganhador)
-                        )
-
-                        st.markdown(f"### 🎁 {nome_premio}: {valor}")
-                        with st.spinner("Sorteando..."):
-                            time.sleep(4)
-
-                        st.success(
-                            f"🏆 **GANHADOR: {ganhador}** "
-                            f"(concorrendo com {qtd_rifas_ganhador} rifa(s))"
-                        )
-                        st.balloons()
-                        time.sleep(2)
-
-                    st.markdown("---")
-                    st.markdown("## 📊 RESULTADO FINAL")
-                    if resultados:
-                        resultado_df = pd.DataFrame(
-                            resultados,
-                            columns=[
-                                "Prêmio",
-                                "Valor",
-                                "Ganhador",
-                                "Rifas do ganhador",
-                            ],
-                        )
-                        st.table(resultado_df)
-
-                        resultado_csv = resultado_df.to_csv(index=False).encode(
-                            "utf-8"
-                        )
-                        st.download_button(
-                            label="📥 Baixar Resultado (CSV)",
-                            data=resultado_csv,
-                            file_name=(
-                                f"resultado_sorteio_"
-                                f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-                            ),
-                            mime="text/csv",
-                        )
+def send_email(to_email, subject, plain_body, html_body):
+    email_cfg = get_email_config()
+    if not email_cfg:
+        return False, "Configuração de e-mail não encontrada em st.secrets."
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = email_cfg["sender_email"]
+    msg["To"] = to_email
+    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        if int(email_cfg["port"]) == 465:
+            with smtplib.SMTP_SSL(email_cfg["host"], int(email_cfg["port"])) as server:
+                server.login(email_cfg["username"], email_cfg["password"])
+                server.sendmail(email_cfg["sender_email"], [to_email], msg.as_string())
         else:
-            st.info("👆 Envie o arquivo Excel com os participantes aptos para começar")
-    elif senha_sorteio != "":
-        st.error("Senha incorreta!")
+            with smtplib.SMTP(email_cfg["host"], int(email_cfg["port"])) as server:
+                server.starttls()
+                server.login(email_cfg["username"], email_cfg["password"])
+                server.sendmail(email_cfg["sender_email"], [to_email], msg.as_string())
+        return True, "ok"
+    except Exception as e:
+        return False, str(e)
+
+def send_approval_email(to_email, orientador_nome, aluno_nome, submission_id, tipo):
+    approval_link = build_link(submission_id, "orientador")
+    subject = f"PPGCA/UFAM - Solicitação de chancela de {tipo}"
+    plain_body = f"Prezado(a) Prof.(a) {orientador_nome},\n\nInformamos que o(a) discente {aluno_nome} submeteu o documento referente a {tipo}.\n\nLink para chancela:\n{approval_link}\n\nProtocolo: {submission_id}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
+    html_body = f"<html><body><p>Prezado(a) Prof.(a) <strong>{orientador_nome}</strong>,</p><p>Informamos que o(a) discente <strong>{aluno_nome}</strong> submeteu o documento referente a <strong>{tipo}</strong>.</p><p><a href='{approval_link}'>Acessar documento para chancela</a></p><p><strong>Protocolo:</strong> {submission_id}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
+    success, result = send_email(to_email, subject, plain_body, html_body)
+    return success, approval_link if success else result
+
+def send_student_submission_email(to_email, aluno_nome, submission_id, tipo, orientador_nome):
+    subject = f"PPGCA/UFAM - Confirmação de submissão de {tipo}"
+    plain_body = f"Prezado(a) {aluno_nome},\n\nSua submissão referente a {tipo} foi registrada e encaminhada ao(à) orientador(a) {orientador_nome}.\n\nProtocolo: {submission_id}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
+    html_body = f"<html><body><p>Prezado(a) <strong>{aluno_nome}</strong>,</p><p>Sua submissão referente a <strong>{tipo}</strong> foi registrada e encaminhada ao(à) orientador(a) <strong>{orientador_nome}</strong>.</p><p><strong>Protocolo:</strong> {submission_id}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
+    return send_email(to_email, subject, plain_body, html_body)
+
+def send_student_decision_email(to_email, aluno_nome, submission_id, tipo, parecer, observacoes):
+    subject = f"PPGCA/UFAM - Resultado da chancela de {tipo}"
+    obs_text = observacoes if observacoes else "Não foram registradas observações adicionais."
+    plain_body = f"Prezado(a) {aluno_nome},\n\nO(A) orientador(a) registrou a seguinte manifestação sobre o documento referente a {tipo}: {parecer}.\n\nProtocolo: {submission_id}\nObservações: {obs_text}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
+    html_body = f"<html><body><p>Prezado(a) <strong>{aluno_nome}</strong>,</p><p>O(A) orientador(a) registrou a seguinte manifestação sobre o documento referente a <strong>{tipo}</strong>: <strong>{parecer}</strong>.</p><p><strong>Protocolo:</strong> {submission_id}</p><p><strong>Observações:</strong> {obs_text}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
+    return send_email(to_email, subject, plain_body, html_body)
+
+init_db()
+query = st.query_params
+view = query.get("view", "app")
+submission_id = query.get("id", "")
+
+st.markdown("<div class='ufam-banner'><div class='ufam-grid'><div class='ufam-mark'></div><div><div class='ufam-title'>PPGCA/UFAM · Fluxo de acompanhamento discente</div><div class='ufam-subtitle'>Programa de Pós-Graduação em Ciências Ambientais · Universidade Federal do Amazonas</div></div></div></div>", unsafe_allow_html=True)
+st.caption("Ambiente para submissão de plano e relatório semestral, encaminhamento ao orientador e registro formal de chancela.")
+
+with st.sidebar:
+    st.markdown("### Configuração do sistema")
+    st.text_input("URL base do app", value=BASE_URL_HINT, disabled=True)
+    st.success("Configuração de e-mail detectada em st.secrets.") if get_email_config() else st.warning("Configuração de e-mail ausente. Veja o arquivo secrets-example.toml.")
+
+if view == "orientador" and submission_id:
+    registro = get_submission(submission_id)
+    if not registro:
+        st.error("Registro não encontrado.")
+    else:
+        st.subheader("Área do orientador")
+        st.markdown(f"**Protocolo:** `{registro['id']}`")
+        st.markdown(f"**Tipo de documento:** {registro['tipo'].replace('_', ' ').title()}")
+        st.markdown(f"**Situação atual:** {status_badge(registro['status'])}", unsafe_allow_html=True)
+        st.markdown("### Registro da chancela")
+        with st.form("approval_form"):
+            parecer = st.selectbox("Manifestação do orientador", ["Homologado", "Homologado com ressalvas", "Devolver para ajustes"])
+            obs = st.text_area("Observações do orientador")
+            ok = st.form_submit_button("Registrar manifestação")
+            if ok:
+                update_approval(registro['id'], parecer, obs)
+                st.success("Manifestação registrada com sucesso.")
+                if registro['aluno_email']:
+                    sent_student, student_msg = send_student_decision_email(registro['aluno_email'], registro['aluno_nome'] or 'Discente', registro['id'], registro['tipo'], parecer, obs)
+                    st.info("O discente foi notificado por e-mail sobre o resultado da chancela.") if sent_student else st.warning(f"A manifestação foi registrada, mas o e-mail ao discente não foi enviado: {student_msg}")
+else:
+    tab1, tab2, tab3 = st.tabs(["Plano semestral", "Relatório semestral", "Painel da coordenação"])
+    with tab1:
+        st.subheader("Submissão de plano semestral")
+        with st.form("plano_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                aluno_nome = st.text_input("Nome do discente")
+                aluno_email = st.text_input("E-mail do discente")
+                linha = st.selectbox("Linha de pesquisa", ["Linha 1", "Linha 2"])
+                fase = st.selectbox("Fase do curso", ["Créditos", "Projeto", "Qualificação", "Coleta/Análise", "Redação", "Defesa"])
+            with c2:
+                orientador_nome = st.text_input("Nome do orientador")
+                orientador_email = st.text_input("E-mail do orientador")
+                semestre = st.text_input("Semestre de referência", placeholder="Ex.: 2026/1")
+                bolsa = st.selectbox("Situação de bolsa", ["Bolsista", "Lista de espera", "Sem bolsa"])
+            metas = st.text_area("Metas acadêmicas previstas para o semestre")
+            produtos = st.text_area("Produtos acadêmicos previstos")
+            dificuldades = st.text_area("Dificuldades previstas ou necessidades de apoio")
+            submitted = st.form_submit_button("Submeter plano")
+            if submitted:
+                sid = make_id("PLN")
+                save_submission({"id": sid, "tipo": "plano", "status": "pendente_orientador", "aluno_nome": aluno_nome, "aluno_email": aluno_email, "orientador_nome": orientador_nome, "orientador_email": orientador_email, "linha_pesquisa": linha, "semestre": semestre, "fase_curso": fase, "bolsa": bolsa, "metas_previstas": metas, "produtos_previstos": produtos, "dificuldades": dificuldades})
+                st.success("Plano submetido com sucesso.")
+                success, result = send_approval_email(orientador_email, orientador_nome, aluno_nome, sid, "plano semestral")
+                st.success("Mensagem institucional enviada ao orientador para chancela.") if success else st.warning("Não foi possível enviar automaticamente a mensagem ao orientador.")
+                st.code(result if success else build_link(sid, "orientador"), language="text")
+                if aluno_email:
+                    sent_student, student_msg = send_student_submission_email(aluno_email, aluno_nome, sid, "plano semestral", orientador_nome)
+                    st.info("O discente recebeu confirmação de submissão por e-mail.") if sent_student else st.warning(f"O plano foi registrado, mas o e-mail ao discente não foi enviado: {student_msg}")
+    with tab2:
+        st.subheader("Submissão de relatório semestral")
+        with st.form("relatorio_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                aluno_nome = st.text_input("Nome do discente", key="r_aluno_nome")
+                aluno_email = st.text_input("E-mail do discente", key="r_aluno_email")
+                semestre = st.text_input("Semestre de referência", key="r_semestre", placeholder="Ex.: 2026/1")
+            with c2:
+                orientador_nome = st.text_input("Nome do orientador", key="r_orientador_nome")
+                orientador_email = st.text_input("E-mail do orientador", key="r_orientador_email")
+                resumo_previsto = st.text_area("Síntese do que havia sido planejado")
+            metas_cumpridas = st.text_area("Metas cumpridas e produção realizada")
+            pendencias = st.text_area("Pendências, atrasos ou dificuldades")
+            proximos = st.text_area("Encaminhamentos para o semestre seguinte")
+            submitted = st.form_submit_button("Submeter relatório")
+            if submitted:
+                sid = make_id("REL")
+                save_submission({"id": sid, "tipo": "relatorio", "status": "pendente_orientador", "aluno_nome": aluno_nome, "aluno_email": aluno_email, "orientador_nome": orientador_nome, "orientador_email": orientador_email, "semestre": semestre, "metas_cumpridas": metas_cumpridas, "pendencias": pendencias, "proximos_passos": proximos, "resumo_previsto": resumo_previsto})
+                st.success("Relatório submetido com sucesso.")
+                success, result = send_approval_email(orientador_email, orientador_nome, aluno_nome, sid, "relatório semestral")
+                st.success("Mensagem institucional enviada ao orientador para chancela.") if success else st.warning("Não foi possível enviar automaticamente a mensagem ao orientador.")
+                st.code(result if success else build_link(sid, "orientador"), language="text")
+                if aluno_email:
+                    sent_student, student_msg = send_student_submission_email(aluno_email, aluno_nome, sid, "relatório semestral", orientador_nome)
+                    st.info("O discente recebeu confirmação de submissão por e-mail.") if sent_student else st.warning(f"O relatório foi registrado, mas o e-mail ao discente não foi enviado: {student_msg}")
+    with tab3:
+        st.subheader("Painel da coordenação")
+        df = get_all_submissions()
+        if df.empty:
+            st.info("Nenhuma submissão registrada até o momento.")
+        else:
+            st.dataframe(df[['id','tipo','status','aluno_nome','orientador_nome','orientador_email','semestre','created_at','updated_at']], use_container_width=True)
+            st.download_button("Baixar CSV das submissões", data=df.to_csv(index=False).encode('utf-8'), file_name='ppgca_submissoes.csv', mime='text/csv')
