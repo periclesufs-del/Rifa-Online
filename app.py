@@ -201,88 +201,170 @@ class PDFWithHeader(FPDF):
                 return
             except Exception:
                 pass
-        self.set_font("Helvetica", "B", 12)
-        self.multi_cell(0, 7, "UNIVERSIDADE FEDERAL DO AMAZONAS - UFAM\nPROGRAMA DE POS-GRADUACAO EM CIENCIAS AMBIENTAIS")
-        self.ln(3)
+        self.set_fill_color(245, 247, 250)
+        self.set_draw_color(210, 215, 223)
+        self.rect(10, 8, 190, 20, style="FD")
+        self.set_xy(14, 12)
+        self.set_font("Helvetica", "B", 13)
+        self.set_text_color(30, 41, 59)
+        self.cell(0, 6, "UNIVERSIDADE FEDERAL DO AMAZONAS - UFAM", new_x="LMARGIN", new_y="NEXT")
+        self.set_x(14)
+        self.set_font("Helvetica", "", 10)
+        self.set_text_color(71, 85, 105)
+        self.cell(0, 5, "Programa de Pos-Graduacao em Ciencias Ambientais", new_x="LMARGIN", new_y="NEXT")
+        self.ln(8)
+
+    def footer(self):
+        self.set_y(-14)
+        self.set_draw_color(220, 225, 230)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(2)
+        self.set_font("Helvetica", "", 8)
+        self.set_text_color(100, 116, 139)
+        self.cell(0, 6, f"PPGCA/UFAM  |  Pagina {self.page_no()}/{{nb}}", align="C")
 
 
 def _safe_text(value):
     if value is None:
         return ""
-    return str(value).replace(" ", " ").strip()
+    text = str(value).replace(" ", " ").strip()
+    return text
 
 
-def _pdf_write_block(pdf, title, body, width=180):
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.multi_cell(width, 8, _safe_text(title))
-    pdf.set_font("Helvetica", "", 11)
-    text = _safe_text(body) or "-"
-    pdf.multi_cell(width, 6, text)
+def _section_title(pdf, title):
+    pdf.ln(2)
+    pdf.set_fill_color(236, 242, 248)
+    pdf.set_draw_color(214, 223, 233)
+    pdf.set_text_color(30, 41, 59)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 8, _safe_text(title), border=1, new_x="LMARGIN", new_y="NEXT", fill=True)
     pdf.ln(1)
+
+
+def _label_value(pdf, label, value, width=190):
+    pdf.set_text_color(71, 85, 105)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(0, 5, _safe_text(label), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(31, 41, 55)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(width, 6, _safe_text(value) or "-", border=0)
+    pdf.ln(1)
+
+
+def _info_box(pdf, items):
+    x0 = 10
+    y0 = pdf.get_y()
+    row_h = 16
+    rows = (len(items) + 1) // 2
+    box_h = rows * row_h + 6
+    pdf.set_fill_color(249, 250, 251)
+    pdf.set_draw_color(222, 226, 230)
+    pdf.rounded_rect(x0, y0, 190, box_h, 3, style="FD") if hasattr(pdf, "rounded_rect") else pdf.rect(x0, y0, 190, box_h, style="FD")
+    col_w = 92
+    left_x = 14
+    right_x = 108
+    y = y0 + 4
+    for i in range(0, len(items), 2):
+        for x, item in [(left_x, items[i]), (right_x, items[i+1] if i + 1 < len(items) else None)]:
+            if not item:
+                continue
+            label, value = item
+            pdf.set_xy(x, y)
+            pdf.set_text_color(100, 116, 139)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.cell(col_w, 4, _safe_text(label), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_xy(x, y + 5)
+            pdf.set_text_color(15, 23, 42)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.multi_cell(col_w, 5, _safe_text(value) or "-", border=0)
+        y += row_h
+    pdf.set_y(y0 + box_h + 3)
+
+
+def _document_title(pdf, title, subtitle=None):
+    pdf.set_text_color(15, 23, 42)
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 8, _safe_text(title), new_x="LMARGIN", new_y="NEXT")
+    if subtitle:
+        pdf.set_text_color(71, 85, 105)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5, _safe_text(subtitle))
+    pdf.ln(2)
 
 
 def gerar_pdf_plano(registro, incluir_parecer=False):
     pdf = PDFWithHeader()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.alias_nb_pages()
+    pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
-    width = 180
 
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.multi_cell(width, 10, "PPGCA/UFAM - Plano semestral")
-    pdf.ln(2)
+    _document_title(pdf, "Plano semestral do discente", "Documento de planejamento academico para apreciacao do orientador.")
+    _info_box(pdf, [
+        ("Protocolo", registro['id']),
+        ("Semestre", registro['semestre']),
+        ("Discente", registro['aluno_nome']),
+        ("Orientador(a)", registro['orientador_nome']),
+        ("Linha de pesquisa", registro['linha_pesquisa']),
+        ("Fase do curso", registro['fase_curso']),
+        ("E-mail do discente", registro['aluno_email']),
+        ("Situacao de bolsa", registro['bolsa']),
+    ])
 
-    _pdf_write_block(pdf, "Protocolo", registro['id'], width)
-    _pdf_write_block(pdf, "Discente", registro['aluno_nome'], width)
-    _pdf_write_block(pdf, "Orientador(a)", registro['orientador_nome'], width)
-    _pdf_write_block(pdf, "E-mail do discente", registro['aluno_email'], width)
-    _pdf_write_block(pdf, "E-mail do orientador(a)", registro['orientador_email'], width)
-    _pdf_write_block(pdf, "Semestre", registro['semestre'], width)
-    _pdf_write_block(pdf, "Linha de pesquisa", registro['linha_pesquisa'], width)
-    _pdf_write_block(pdf, "Fase do curso", registro['fase_curso'], width)
-    _pdf_write_block(pdf, "Situação de bolsa", registro['bolsa'], width)
-    _pdf_write_block(pdf, "Metas acadêmicas previstas", registro['metas_previstas'], width)
-    _pdf_write_block(pdf, "Produtos acadêmicos previstos", registro['produtos_previstos'], width)
-    _pdf_write_block(pdf, "Dificuldades / necessidades de apoio", registro['dificuldades'], width)
+    _section_title(pdf, "Planejamento academico")
+    _label_value(pdf, "Metas academicas previstas", registro['metas_previstas'])
+    _label_value(pdf, "Produtos academicos previstos", registro['produtos_previstos'])
+    _label_value(pdf, "Dificuldades e necessidades de apoio", registro['dificuldades'])
 
     if incluir_parecer:
         pdf.add_page()
-        pdf.set_font("Helvetica", "B", 13)
-        pdf.multi_cell(width, 10, "Parecer do(a) orientador(a)")
-        pdf.ln(2)
-        _pdf_write_block(pdf, "Parecer", registro['parecer_orientador'] or 'Não informado', width)
-        _pdf_write_block(pdf, "Observações", registro['observacoes_orientador'], width)
+        _document_title(pdf, "Manifestacao do orientador", "Registro formal de chancela do plano submetido.")
+        _info_box(pdf, [
+            ("Protocolo", registro['id']),
+            ("Discente", registro['aluno_nome']),
+            ("Orientador(a)", registro['orientador_nome']),
+            ("Parecer", registro['parecer_orientador'] or 'Nao informado'),
+        ])
+        _section_title(pdf, "Parecer e observacoes")
+        _label_value(pdf, "Manifestacao", registro['parecer_orientador'] or 'Nao informado')
+        _label_value(pdf, "Observacoes do orientador", registro['observacoes_orientador'])
 
     return pdf.output(dest='S')
 
 
 def gerar_pdf_relatorio(registro, incluir_parecer=False):
     pdf = PDFWithHeader()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.alias_nb_pages()
+    pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
-    width = 180
 
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.multi_cell(width, 10, "PPGCA/UFAM - Relatório semestral")
-    pdf.ln(2)
+    _document_title(pdf, "Relatorio semestral do discente", "Documento de acompanhamento das atividades desenvolvidas no periodo.")
+    _info_box(pdf, [
+        ("Protocolo", registro['id']),
+        ("Semestre", registro['semestre']),
+        ("Discente", registro['aluno_nome']),
+        ("Orientador(a)", registro['orientador_nome']),
+        ("E-mail do discente", registro['aluno_email']),
+        ("E-mail do orientador(a)", registro['orientador_email']),
+    ])
 
-    _pdf_write_block(pdf, "Protocolo", registro['id'], width)
-    _pdf_write_block(pdf, "Discente", registro['aluno_nome'], width)
-    _pdf_write_block(pdf, "Orientador(a)", registro['orientador_nome'], width)
-    _pdf_write_block(pdf, "E-mail do discente", registro['aluno_email'], width)
-    _pdf_write_block(pdf, "E-mail do orientador(a)", registro['orientador_email'], width)
-    _pdf_write_block(pdf, "Semestre", registro['semestre'], width)
-    _pdf_write_block(pdf, "Síntese do que havia sido planejado", registro['resumo_previsto'], width)
-    _pdf_write_block(pdf, "Metas cumpridas e produção realizada", registro['metas_cumpridas'], width)
-    _pdf_write_block(pdf, "Pendências, atrasos ou dificuldades", registro['pendencias'], width)
-    _pdf_write_block(pdf, "Encaminhamentos para o semestre seguinte", registro['proximos_passos'], width)
+    _section_title(pdf, "Execucao do semestre")
+    _label_value(pdf, "Sintese do que havia sido planejado", registro['resumo_previsto'])
+    _label_value(pdf, "Metas cumpridas e producao realizada", registro['metas_cumpridas'])
+    _label_value(pdf, "Pendencias, atrasos ou dificuldades", registro['pendencias'])
+    _label_value(pdf, "Encaminhamentos para o semestre seguinte", registro['proximos_passos'])
 
     if incluir_parecer:
         pdf.add_page()
-        pdf.set_font("Helvetica", "B", 13)
-        pdf.multi_cell(width, 10, "Parecer do(a) orientador(a)")
-        pdf.ln(2)
-        _pdf_write_block(pdf, "Parecer", registro['parecer_orientador'] or 'Não informado', width)
-        _pdf_write_block(pdf, "Observações", registro['observacoes_orientador'], width)
+        _document_title(pdf, "Manifestacao do orientador", "Registro formal de chancela do relatorio submetido.")
+        _info_box(pdf, [
+            ("Protocolo", registro['id']),
+            ("Discente", registro['aluno_nome']),
+            ("Orientador(a)", registro['orientador_nome']),
+            ("Parecer", registro['parecer_orientador'] or 'Nao informado'),
+        ])
+        _section_title(pdf, "Parecer e observacoes")
+        _label_value(pdf, "Manifestacao", registro['parecer_orientador'] or 'Nao informado')
+        _label_value(pdf, "Observacoes do orientador", registro['observacoes_orientador'])
 
     return pdf.output(dest='S')
 
