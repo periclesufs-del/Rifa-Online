@@ -7,8 +7,6 @@ from urllib.parse import urlencode
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
-from io import BytesIO
-
 import pandas as pd
 from fpdf import FPDF
 import streamlit as st
@@ -188,119 +186,85 @@ def send_email(to_email, subject, plain_body, html_body, attachments=None):
         return False, str(e)
 
 
+def _safe_text(value):
+    if value is None:
+        return ""
+    return str(value).replace(" ", " ").strip()
+
+
+def _pdf_write_block(pdf, title, body, width=180):
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.multi_cell(width, 8, _safe_text(title))
+    pdf.set_font("Helvetica", "", 11)
+    text = _safe_text(body) or "-"
+    pdf.multi_cell(width, 6, text)
+    pdf.ln(1)
+
+
 def gerar_pdf_plano(registro, incluir_parecer=False):
     pdf = FPDF()
-    pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    width = 180
 
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, "PPGCA/UFAM - Plano semestral", ln=True)
-
-    pdf.ln(4)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, f"Protocolo: {registro['id']}")
-    pdf.multi_cell(0, 6, f"Discente: {registro['aluno_nome']}")
-    pdf.multi_cell(0, 6, f"Orientador(a): {registro['orientador_nome']}")
-    pdf.multi_cell(0, 6, f"E-mail do discente: {registro['aluno_email']}")
-    pdf.multi_cell(0, 6, f"E-mail do orientador(a): {registro['orientador_email']}")
-    pdf.multi_cell(0, 6, f"Semestre: {registro['semestre']}")
-    pdf.multi_cell(0, 6, f"Linha de pesquisa: {registro['linha_pesquisa']}")
-    pdf.multi_cell(0, 6, f"Fase do curso: {registro['fase_curso']}")
-    pdf.multi_cell(0, 6, f"Situação de bolsa: {registro['bolsa']}")
-
-    pdf.ln(4)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Metas acadêmicas previstas", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, registro['metas_previstas'] or "")
-
+    pdf.multi_cell(width, 10, "PPGCA/UFAM - Plano semestral")
     pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Produtos acadêmicos previstos", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, registro['produtos_previstos'] or "")
 
-    pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Dificuldades / necessidades de apoio", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, registro['dificuldades'] or "")
+    _pdf_write_block(pdf, "Protocolo", registro['id'], width)
+    _pdf_write_block(pdf, "Discente", registro['aluno_nome'], width)
+    _pdf_write_block(pdf, "Orientador(a)", registro['orientador_nome'], width)
+    _pdf_write_block(pdf, "E-mail do discente", registro['aluno_email'], width)
+    _pdf_write_block(pdf, "E-mail do orientador(a)", registro['orientador_email'], width)
+    _pdf_write_block(pdf, "Semestre", registro['semestre'], width)
+    _pdf_write_block(pdf, "Linha de pesquisa", registro['linha_pesquisa'], width)
+    _pdf_write_block(pdf, "Fase do curso", registro['fase_curso'], width)
+    _pdf_write_block(pdf, "Situação de bolsa", registro['bolsa'], width)
+    _pdf_write_block(pdf, "Metas acadêmicas previstas", registro['metas_previstas'], width)
+    _pdf_write_block(pdf, "Produtos acadêmicos previstos", registro['produtos_previstos'], width)
+    _pdf_write_block(pdf, "Dificuldades / necessidades de apoio", registro['dificuldades'], width)
 
     if incluir_parecer:
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 13)
-        pdf.cell(0, 10, "Parecer do(a) orientador(a)", ln=True)
-        pdf.set_font("Helvetica", "", 11)
-        pdf.multi_cell(0, 6, f"Parecer: {registro['parecer_orientador'] or 'Não informado'}")
+        pdf.multi_cell(width, 10, "Parecer do(a) orientador(a)")
         pdf.ln(2)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 8, "Observações", ln=True)
-        pdf.set_font("Helvetica", "", 11)
-        pdf.multi_cell(0, 6, registro['observacoes_orientador'] or "")
+        _pdf_write_block(pdf, "Parecer", registro['parecer_orientador'] or 'Não informado', width)
+        _pdf_write_block(pdf, "Observações", registro['observacoes_orientador'], width)
 
-    buffer = BytesIO()
-    pdf.output(buffer)
-    buffer.seek(0)
-    return buffer.read()
+    return pdf.output(dest='S')
 
 
 def gerar_pdf_relatorio(registro, incluir_parecer=False):
     pdf = FPDF()
-    pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    width = 180
 
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, "PPGCA/UFAM - Relatório semestral", ln=True)
-
-    pdf.ln(4)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, f"Protocolo: {registro['id']}")
-    pdf.multi_cell(0, 6, f"Discente: {registro['aluno_nome']}")
-    pdf.multi_cell(0, 6, f"Orientador(a): {registro['orientador_nome']}")
-    pdf.multi_cell(0, 6, f"E-mail do discente: {registro['aluno_email']}")
-    pdf.multi_cell(0, 6, f"E-mail do orientador(a): {registro['orientador_email']}")
-    pdf.multi_cell(0, 6, f"Semestre: {registro['semestre']}")
-
-    pdf.ln(4)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Síntese do que havia sido planejado", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, registro['resumo_previsto'] or "")
-
+    pdf.multi_cell(width, 10, "PPGCA/UFAM - Relatório semestral")
     pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Metas cumpridas e produção realizada", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, registro['metas_cumpridas'] or "")
 
-    pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Pendências, atrasos ou dificuldades", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, registro['pendencias'] or "")
-
-    pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Encaminhamentos para o semestre seguinte", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 6, registro['proximos_passos'] or "")
+    _pdf_write_block(pdf, "Protocolo", registro['id'], width)
+    _pdf_write_block(pdf, "Discente", registro['aluno_nome'], width)
+    _pdf_write_block(pdf, "Orientador(a)", registro['orientador_nome'], width)
+    _pdf_write_block(pdf, "E-mail do discente", registro['aluno_email'], width)
+    _pdf_write_block(pdf, "E-mail do orientador(a)", registro['orientador_email'], width)
+    _pdf_write_block(pdf, "Semestre", registro['semestre'], width)
+    _pdf_write_block(pdf, "Síntese do que havia sido planejado", registro['resumo_previsto'], width)
+    _pdf_write_block(pdf, "Metas cumpridas e produção realizada", registro['metas_cumpridas'], width)
+    _pdf_write_block(pdf, "Pendências, atrasos ou dificuldades", registro['pendencias'], width)
+    _pdf_write_block(pdf, "Encaminhamentos para o semestre seguinte", registro['proximos_passos'], width)
 
     if incluir_parecer:
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 13)
-        pdf.cell(0, 10, "Parecer do(a) orientador(a)", ln=True)
-        pdf.set_font("Helvetica", "", 11)
-        pdf.multi_cell(0, 6, f"Parecer: {registro['parecer_orientador'] or 'Não informado'}")
+        pdf.multi_cell(width, 10, "Parecer do(a) orientador(a)")
         pdf.ln(2)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 8, "Observações", ln=True)
-        pdf.set_font("Helvetica", "", 11)
-        pdf.multi_cell(0, 6, registro['observacoes_orientador'] or "")
+        _pdf_write_block(pdf, "Parecer", registro['parecer_orientador'] or 'Não informado', width)
+        _pdf_write_block(pdf, "Observações", registro['observacoes_orientador'], width)
 
-    buffer = BytesIO()
-    pdf.output(buffer)
-    buffer.seek(0)
-    return buffer.read()
+    return pdf.output(dest='S')
 
 
 def send_approval_email(to_email, orientador_nome, aluno_nome, submission_id, tipo):
