@@ -15,6 +15,8 @@ st.set_page_config(page_title="PPGCA/UFAM · Fluxo Discente", layout="wide")
 
 DB_PATH = Path(__file__).parent / "ppgca_fluxo.db"
 BASE_URL_HINT = "https://rifa-online-2wluyopwprcysjzdp7zomy.streamlit.app/"
+PROGRAM_EMAIL = "periclesufs@gmail.com"
+HEADER_IMAGE_PATH = Path(__file__).parent / "assets" / "header.jpg"
 
 st.markdown(
     """
@@ -150,7 +152,7 @@ def get_email_config():
     return st.secrets["email"] if "email" in st.secrets else None
 
 
-def send_email(to_email, subject, plain_body, html_body, attachments=None):
+def send_email(to_email, subject, plain_body, html_body, attachments=None, cc=None):
     email_cfg = get_email_config()
     if not email_cfg:
         return False, "Configuração de e-mail não encontrada em st.secrets."
@@ -159,6 +161,8 @@ def send_email(to_email, subject, plain_body, html_body, attachments=None):
     msg["Subject"] = subject
     msg["From"] = email_cfg["sender_email"]
     msg["To"] = to_email
+    if cc:
+        msg["Cc"] = ", ".join(cc)
 
     alt = MIMEMultipart("alternative")
     alt.attach(MIMEText(plain_body, "plain", "utf-8"))
@@ -175,15 +179,27 @@ def send_email(to_email, subject, plain_body, html_body, attachments=None):
         if int(email_cfg["port"]) == 465:
             with smtplib.SMTP_SSL(email_cfg["host"], int(email_cfg["port"])) as server:
                 server.login(email_cfg["username"], email_cfg["password"])
-                server.sendmail(email_cfg["sender_email"], [to_email], msg.as_string())
+                recipients = [to_email] + (cc or [])
+                server.sendmail(email_cfg["sender_email"], recipients, msg.as_string())
         else:
             with smtplib.SMTP(email_cfg["host"], int(email_cfg["port"])) as server:
                 server.starttls()
                 server.login(email_cfg["username"], email_cfg["password"])
-                server.sendmail(email_cfg["sender_email"], [to_email], msg.as_string())
+                recipients = [to_email] + (cc or [])
+                server.sendmail(email_cfg["sender_email"], recipients, msg.as_string())
         return True, "ok"
     except Exception as e:
         return False, str(e)
+
+
+class PDFWithHeader(FPDF):
+    def header(self):
+        if HEADER_IMAGE_PATH.exists():
+            self.image(str(HEADER_IMAGE_PATH), x=10, y=8, w=190)
+            self.ln(30)
+        else:
+            self.set_font("Helvetica", "B", 12)
+            self.cell(0, 10, "PPGCA/UFAM", new_x="LMARGIN", new_y="NEXT")
 
 
 def _safe_text(value):
@@ -202,7 +218,7 @@ def _pdf_write_block(pdf, title, body, width=180):
 
 
 def gerar_pdf_plano(registro, incluir_parecer=False):
-    pdf = FPDF()
+    pdf = PDFWithHeader()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     width = 180
@@ -236,7 +252,7 @@ def gerar_pdf_plano(registro, incluir_parecer=False):
 
 
 def gerar_pdf_relatorio(registro, incluir_parecer=False):
-    pdf = FPDF()
+    pdf = PDFWithHeader()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     width = 180
@@ -280,10 +296,10 @@ def send_student_submission_email(to_email, aluno_nome, submission_id, tipo, ori
     subject = f"PPGCA/UFAM - Confirmação de submissão de {tipo}"
     plain_body = f"Prezado(a) {aluno_nome},\n\nSua submissão referente a {tipo} foi registrada e encaminhada ao(à) orientador(a) {orientador_nome}.\n\nProtocolo: {submission_id}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
     html_body = f"<html><body><p>Prezado(a) <strong>{aluno_nome}</strong>,</p><p>Sua submissão referente a <strong>{tipo}</strong> foi registrada e encaminhada ao(à) orientador(a) <strong>{orientador_nome}</strong>.</p><p><strong>Protocolo:</strong> {submission_id}</p><p>Atenciosamente,<br><strong>Coordenação do PPGCA/UFAM</strong></p></body></html>"
-    return send_email(to_email, subject, plain_body, html_body, attachments=attachments)
+    return send_email(to_email, subject, plain_body, html_body, attachments=attachments, cc=cc)
 
 
-def send_student_decision_email(to_email, aluno_nome, submission_id, tipo, parecer, observacoes, attachments=None):
+def send_student_decision_email(to_email, aluno_nome, submission_id, tipo, parecer, observacoes, attachments=None, cc=None):
     subject = f"PPGCA/UFAM - Resultado da chancela de {tipo}"
     obs_text = observacoes if observacoes else "Não foram registradas observações adicionais."
     plain_body = f"Prezado(a) {aluno_nome},\n\nO(A) orientador(a) registrou a seguinte manifestação sobre o documento referente a {tipo}: {parecer}.\n\nProtocolo: {submission_id}\nObservações: {obs_text}\n\nAtenciosamente,\nCoordenação do PPGCA/UFAM"
@@ -305,6 +321,7 @@ st.caption("Ambiente para submissão de plano e relatório semestral, encaminham
 with st.sidebar:
     st.markdown("### Configuração do sistema")
     st.text_input("URL base do app", value=BASE_URL_HINT, disabled=True)
+    st.text_input("E-mail do programa", value=PROGRAM_EMAIL, disabled=True)
     if get_email_config():
         st.success("Configuração de e-mail detectada em st.secrets.")
     else:
@@ -375,14 +392,15 @@ if view == "orientador" and submission_id:
                 if registro['aluno_email']:
                     sent_student, student_msg = send_student_decision_email(
                         registro['aluno_email'], registro['aluno_nome'] or 'Discente', registro['id'], registro['tipo'], parecer, obs,
-                        attachments=[(fname, pdf_bytes)]
+                        attachments=[(fname, pdf_bytes)],
+                        cc=[PROGRAM_EMAIL]
                     )
                     if sent_student:
-                        st.info("O discente foi notificado por e-mail sobre o resultado da chancela (PDF em anexo).")
+                        st.info("O discente foi notificado por e-mail sobre o resultado da chancela (PDF em anexo), com cópia para o e-mail do programa.")
                     else:
                         st.warning(f"A manifestação foi registrada, mas o e-mail ao discente não foi enviado: {student_msg}")
 else:
-    tab1, tab2, tab3 = st.tabs(["Plano semestral", "Relatório semestral", "Painel da coordenação"])
+    tab1, tab2 = st.tabs(["Plano semestral", "Relatório semestral"])
     with tab1:
         st.subheader("Submissão de plano semestral")
         with st.form("plano_form"):
@@ -427,7 +445,8 @@ else:
                 if aluno_email:
                     sent_student, student_msg = send_student_submission_email(
                         aluno_email, aluno_nome, sid, "plano semestral", orientador_nome,
-                        attachments=[(fname, pdf_bytes)]
+                        attachments=[(fname, pdf_bytes)],
+                        cc=[PROGRAM_EMAIL]
                     )
                     if sent_student:
                         st.info("O discente recebeu confirmação de submissão por e-mail (PDF em anexo).")
@@ -475,25 +494,10 @@ else:
                 if aluno_email:
                     sent_student, student_msg = send_student_submission_email(
                         aluno_email, aluno_nome, sid, "relatório semestral", orientador_nome,
-                        attachments=[(fname, pdf_bytes)]
+                        attachments=[(fname, pdf_bytes)],
+                        cc=[PROGRAM_EMAIL]
                     )
                     if sent_student:
                         st.info("O discente recebeu confirmação de submissão por e-mail (PDF em anexo).")
                     else:
                         st.warning(f"O relatório foi registrado, mas o e-mail ao discente não foi enviado: {student_msg}")
-    with tab3:
-        st.subheader("Painel da coordenação")
-        df = get_all_submissions()
-        if df.empty:
-            st.info("Nenhuma submissão registrada até o momento.")
-        else:
-            st.dataframe(
-                df[['id','tipo','status','aluno_nome','orientador_nome','orientador_email','semestre','created_at','updated_at']],
-                use_container_width=True
-            )
-            st.download_button(
-                "Baixar CSV das submissões",
-                data=df.to_csv(index=False).encode('utf-8'),
-                file_name='ppgca_submissoes.csv',
-                mime='text/csv'
-            )
